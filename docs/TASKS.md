@@ -10,43 +10,43 @@
 ## M1 — 뼈대
 
 ### 모노레포 세팅
-- [ ] **M1-01** `pnpm` 워크스페이스 루트 세팅 (`pnpm-workspace.yaml`, 루트 `package.json`, `.gitignore`, `.editorconfig`)
+- [x] **M1-01** `pnpm` 워크스페이스 루트 세팅 (`pnpm-workspace.yaml`, 루트 `package.json`, `.gitignore`, `.editorconfig`)
   `[검증]` `pnpm install`이 에러 없이 완료
-- [ ] **M1-02** 루트 공통 tooling: ESLint + Prettier + TypeScript base config (`tsconfig.base.json`), husky/lint-staged(선택)
+- [x] **M1-02** 루트 공통 tooling: ESLint + Prettier + TypeScript base config (`tsconfig.base.json`), husky/lint-staged(선택)
   `[검증]` `pnpm lint`가 루트에서 실행됨(대상 없음 상태라도 통과)
-- [ ] **M1-03** Git 저장소 초기화 + 최초 커밋(`CLAUDE.md`, `docs/*`, 루트 세팅 파일)
+- [x] **M1-03** Git 저장소 초기화 + 최초 커밋(`CLAUDE.md`, `docs/*`, 루트 세팅 파일)
   `[검증]` `git log`에 초기 커밋 확인
 
 ### packages/shared
-- [ ] **M1-04** `packages/shared` 패키지 스캐폴드(package.json, tsconfig, 빌드 스크립트)
+- [x] **M1-04** `packages/shared` 패키지 스캐폴드(package.json, tsconfig, 빌드 스크립트)
   `[검증]` `pnpm --filter shared build` 성공
-- [ ] **M1-05** `recognition.ts` 작성 — CLAUDE.md 4장의 `Detection`/`ActionStep`/`RecognitionResult`/`RecognitionEngine` 타입 + `FrameSource` 최소 타입
+- [x] **M1-05** `recognition.ts` 작성 — CLAUDE.md 4장의 `Detection`/`ActionStep`/`RecognitionResult`/`RecognitionEngine` 타입 + `FrameSource` 최소 타입
   `[검증]` 타입 export 확인, `tsc --noEmit` 통과
-- [ ] **M1-06** `constants.ts` 작성 — 판정 정책 상수(`TAKEN_THRESHOLD` 등), 판정 함수 `decideFromConf(conf: number): Decision` 단위 테스트 포함
+- [x] **M1-06** `constants.ts` 작성 — 판정 정책 상수(`TAKEN_THRESHOLD` 등), 판정 함수 `decideFromConf(conf: number): Decision` 단위 테스트 포함
   `[검증]` `pnpm --filter shared test` 통과 (경계값 0.60/0.90 테스트)
-- [ ] **M1-07** `log.ts`, `dto/` — `MedicationLog` 관련 타입 및 API DTO 타입 정의 (TRD 4장 Prisma 스키마와 정합)
+- [x] **M1-07** `log.ts`, `dto/` — `MedicationLog` 관련 타입 및 API DTO 타입 정의 (TRD 4장 Prisma 스키마와 정합)
   `[검증]` 타입 컴파일 통과, TRD 스키마와 필드명 대조 확인
 
 ### apps/server 부팅
-- [ ] **M1-08** NestJS 프로젝트 스캐폴드 (`nest new` 기반, `apps/server`) + `packages/shared` 의존성 연결
+- [x] **M1-08** NestJS 프로젝트 스캐폴드 (`nest new` 기반, `apps/server`) + `packages/shared` 의존성 연결
   `[검증]` `pnpm --filter server start:dev`로 기본 서버 기동, `GET /` 200 응답
-- [ ] **M1-09** Prisma 설정 + PostgreSQL 연결(`DATABASE_URL`), `.env.example` 작성
+- [x] **M1-09** Prisma 설정 + PostgreSQL 연결(`DATABASE_URL`), `.env.example` 작성
   `[검증]` `pnpm --filter server prisma:generate` 성공
-- [ ] **M1-10** TRD 4장 스키마 작성(`schema.prisma`: User/Link/InviteCode/Schedule/MedicationLog) + 최초 마이그레이션
+- [x] **M1-10** TRD 4장 스키마 작성(`schema.prisma`: User/Link/InviteCode/Schedule/MedicationLog) + 최초 마이그레이션
   `[검증]` `prisma migrate dev` 성공, `prisma studio`로 테이블 확인
-- [ ] **M1-11** 공통 에러 처리(`common/filters/http-exception.filter.ts`) + 검증 파이프(`ValidationPipe` 전역 설정)
+- [x] **M1-11** 공통 에러 처리(`common/filters/http-exception.filter.ts`) + 검증 파이프(`ValidationPipe` 전역 설정)
   `[검증]` 존재하지 않는 라우트 호출 시 통일된 에러 JSON 포맷 응답
 
 ### apps/mobile 부팅
-- [ ] **M1-12** Expo(TypeScript) 프로젝트 스캐폴드 (`apps/mobile`, expo-router 기반) + `packages/shared` 의존성 연결
+- [x] **M1-12** Expo(TypeScript) 프로젝트 스캐폴드 (`apps/mobile`, expo-router 기반) + `packages/shared` 의존성 연결
   `[검증]` `pnpm --filter mobile start` → Expo Go에서 기본 화면 로드
-- [ ] **M1-13** 역할 분기 스토어/라우팅 골격 — 로컬 저장(AsyncStorage)에 역할(`ELDER`/`GUARDIAN`/미설정) 저장, 앱 진입 시 역할에 따라 라우트 분기
+- [x] **M1-13** 역할 분기 스토어/라우팅 골격 — 로컬 저장(AsyncStorage)에 역할(`ELDER`/`GUARDIAN`/미설정) 저장, 앱 진입 시 역할에 따라 라우트 분기
   `[검증]` 역할 미설정 시 온보딩 화면, 역할 설정 후 재실행 시 해당 모드로 직행 (Expo Go 수동 확인)
-- [ ] **M1-14** 온보딩 화면 뼈대(PRD 4.1.1) — "보호자로 시작" / "초대코드로 어르신 기기 설정" 두 경로 UI만(로직은 M2에서 API 연결)
+- [x] **M1-14** 온보딩 화면 뼈대(PRD 4.1.1) — "보호자로 시작" / "초대코드로 어르신 기기 설정" 두 경로 UI만(로직은 M2에서 API 연결)
   `[검증]` 두 버튼 탭 시 각 플레이스홀더 화면으로 이동
 
 ### M1 마무리
-- [ ] **M1-15** 루트 README 작성 — 개발 환경 세팅/실행 방법 요약 (Windows+WSL2, pnpm, 각 앱 실행 커맨드)
+- [x] **M1-15** 루트 README 작성 — 개발 환경 세팅/실행 방법 요약 (Windows+WSL2, pnpm, 각 앱 실행 커맨드)
   `[검증]` 새 환경에서 README만 보고 서버+모바일 기동 가능한지 셀프 점검
 
 ---
@@ -201,4 +201,14 @@
 
 | 날짜 | 태스크 | 커밋 |
 |---|---|---|
-| - | - | - |
+| 2026-07-30 | M1-01~M1-03 | `3554320` |
+| 2026-07-30 | M1-04~M1-07 | `eafb12a` |
+| 2026-07-30 | M1-08 | `2579816` |
+| 2026-07-30 | M1-09~M1-10 | `70b52da` |
+| 2026-07-30 | M1-11 | `d5df1b9` |
+| 2026-07-30 | M1-12 | `b29dc27` |
+| 2026-07-30 | M1-13 | `f496a3d` |
+| 2026-07-30 | M1-14 | `f6050a7` |
+| 2026-07-30 | M1-15 | `19a2783` |
+
+**M1 완료.** M2(서비스 플로우 Mock)는 사용자 요청에 따라 잠시 보류 — 재개 시 M2-01(`MockRecognitionEngine`)부터 시작한다.
