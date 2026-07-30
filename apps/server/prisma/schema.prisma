@@ -1,0 +1,107 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ELDER
+  GUARDIAN
+}
+
+enum ScheduleSlot {
+  MORNING
+  NOON
+  EVENING
+}
+
+enum Decision {
+  TAKEN
+  UNCERTAIN
+  MISSED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  role         Role
+  name         String
+  phone        String   @unique
+  passwordHash String?
+  pushToken    String?
+  createdAt    DateTime @default(now())
+
+  elderLinks     Link[]          @relation("ElderLinks")
+  guardianLinks  Link[]          @relation("GuardianLinks")
+  schedules      Schedule[]
+  logs           MedicationLog[] @relation("ElderLogs")
+  manualConfirms MedicationLog[] @relation("ManualConfirmedLogs")
+  inviteCodes    InviteCode[]
+
+  @@map("users")
+}
+
+model Link {
+  id         String   @id @default(cuid())
+  elderId    String
+  guardianId String
+  createdAt  DateTime @default(now())
+
+  elder    User @relation("ElderLinks", fields: [elderId], references: [id])
+  guardian User @relation("GuardianLinks", fields: [guardianId], references: [id])
+
+  @@unique([elderId, guardianId])
+  @@map("links")
+}
+
+model InviteCode {
+  id         String    @id @default(cuid())
+  code       String    @unique
+  guardianId String
+  expiresAt  DateTime
+  redeemedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  guardian User @relation(fields: [guardianId], references: [id])
+
+  @@map("invite_codes")
+}
+
+model Schedule {
+  id      String       @id @default(cuid())
+  elderId String
+  slot    ScheduleSlot
+  time    String
+  enabled Boolean      @default(true)
+
+  elder User            @relation(fields: [elderId], references: [id])
+  logs  MedicationLog[]
+
+  @@unique([elderId, slot])
+  @@map("schedules")
+}
+
+model MedicationLog {
+  id                 String    @id @default(cuid())
+  elderId            String
+  scheduleId         String?
+  takenAt            DateTime
+  decision           Decision
+  sequenceConf       Float
+  detectionsJson     Json
+  actionSequenceJson Json
+  videoRef           String?
+  manualConfirmedBy  String?
+  manualConfirmedAt  DateTime?
+  deviceInfo         Json?
+  createdAt          DateTime  @default(now())
+
+  elder                 User      @relation("ElderLogs", fields: [elderId], references: [id])
+  schedule              Schedule? @relation(fields: [scheduleId], references: [id])
+  manualConfirmedByUser User?     @relation("ManualConfirmedLogs", fields: [manualConfirmedBy], references: [id])
+
+  @@index([elderId, takenAt])
+  @@map("medication_logs")
+}

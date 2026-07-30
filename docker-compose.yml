@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: carelog-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: carelog
+      POSTGRES_PASSWORD: carelog
+      POSTGRES_DB: carelog
+    ports:
+      - "5432:5432"
+    volumes:
+      - carelog-postgres-data:/var/lib/postgresql/data
+
+volumes:
+  carelog-postgres-data:
