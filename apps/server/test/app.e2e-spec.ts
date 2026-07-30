@@ -1,8 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module';
+import { HttpExceptionFilter } from './../src/common/filters/http-exception.filter';
 
 describe('AppController (e2e)', () => {
   let app: INestApplication<App>;
@@ -13,6 +14,14 @@ describe('AppController (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
+    app.useGlobalFilters(new HttpExceptionFilter());
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+      }),
+    );
     await app.init();
   });
 
@@ -21,6 +30,28 @@ describe('AppController (e2e)', () => {
       .get('/')
       .expect(200)
       .expect('Hello World!');
+  });
+
+  it('존재하지 않는 라우트는 통일된 에러 포맷으로 404를 반환한다', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/no-such-route')
+      .expect(404);
+
+    const body = res.body as {
+      statusCode: number;
+      code: string;
+      message: string;
+      timestamp: string;
+      path: string;
+    };
+
+    expect(body).toMatchObject({
+      statusCode: 404,
+      code: 'NOT_FOUND',
+      path: '/no-such-route',
+    });
+    expect(typeof body.message).toBe('string');
+    expect(typeof body.timestamp).toBe('string');
   });
 
   afterEach(async () => {
