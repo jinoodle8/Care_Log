@@ -1,0 +1,44 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# build outputs
+dist/
+build/
+.expo/
+.expo-shared/
+*.tsbuildinfo
+
+# env
+.env
+.env.local
+.env.*.local
+
+# logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# prisma
+apps/server/prisma/migrations/.gitkeep
+
+# expo
+apps/mobile/.expo/
+apps/mobile/android/
+apps/mobile/ios/
+
+# ai
+ai/dataset/
+ai/export/*.tflite
+
+# test coverage
+coverage/
