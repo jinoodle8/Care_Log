@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
+import type { LogStats } from '@carelog/shared';
 import type { MedicationLog } from '@carelog/shared';
+import { calculateLogStats } from '@carelog/shared';
 import type {
   Prisma,
   MedicationLog as MedicationLogRecord,
@@ -7,6 +9,7 @@ import type {
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateLogDto } from './dto/create-log.dto';
 import { QueryLogsDto } from './dto/query-logs.dto';
+import { QueryStatsDto } from './dto/query-stats.dto';
 
 @Injectable()
 export class LogsService {
@@ -44,6 +47,29 @@ export class LogsService {
     });
     return records.map(toMedicationLog);
   }
+
+  async getStats(query: QueryStatsDto): Promise<LogStats> {
+    const { from, to } = resolveRangeBounds(query.range);
+    const records = await this.prisma.medicationLog.findMany({
+      where: { elderId: query.elderId, takenAt: { gte: from, lte: to } },
+      select: { decision: true },
+    });
+    return calculateLogStats(
+      records.map((record) => record.decision),
+      query.range,
+    );
+  }
+}
+
+function resolveRangeBounds(range: 'day' | 'week'): { from: Date; to: Date } {
+  const to = new Date();
+  const from = new Date(to);
+  if (range === 'day') {
+    from.setHours(0, 0, 0, 0);
+  } else {
+    from.setDate(from.getDate() - 7);
+  }
+  return { from, to };
 }
 
 function toMedicationLog(record: MedicationLogRecord): MedicationLog {

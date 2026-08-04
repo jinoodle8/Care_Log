@@ -113,4 +113,57 @@ describe('LogsController (e2e)', () => {
   it('elderId 없이 GET /logs 요청 시 400을 반환한다', async () => {
     await request(app.getHttpServer()).get('/logs').expect(400);
   });
+
+  describe('GET /logs/stats', () => {
+    let statsElderId: string;
+
+    beforeAll(async () => {
+      const elder = await prisma.user.create({
+        data: {
+          role: 'ELDER',
+          name: '통계 테스트 어르신',
+          phone: `010-stats-${Date.now()}`,
+        },
+      });
+      statsElderId = elder.id;
+
+      const decisions = ['TAKEN', 'TAKEN', 'TAKEN', 'UNCERTAIN'];
+      for (const decision of decisions) {
+        await request(app.getHttpServer())
+          .post('/logs')
+          .send(buildCreateLogPayload({ elderId: statsElderId, decision }))
+          .expect(201);
+      }
+    }, 30000);
+
+    afterAll(async () => {
+      await prisma.medicationLog.deleteMany({
+        where: { elderId: statsElderId },
+      });
+      await prisma.user.delete({ where: { id: statsElderId } });
+    });
+
+    it('스케줄(로그) 4건 중 TAKEN 3건이면 이행률 75%를 반환한다', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/logs/stats')
+        .query({ elderId: statsElderId, range: 'day' })
+        .expect(200);
+
+      expect(res.body).toEqual({
+        range: 'day',
+        takenCount: 3,
+        uncertainCount: 1,
+        missedCount: 0,
+        scheduledCount: 4,
+        adherenceRate: 0.75,
+      });
+    });
+
+    it('range 값이 잘못되면 400을 반환한다', async () => {
+      await request(app.getHttpServer())
+        .get('/logs/stats')
+        .query({ elderId: statsElderId, range: 'month' })
+        .expect(400);
+    });
+  });
 });
