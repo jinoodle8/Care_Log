@@ -1,68 +1,86 @@
-import type { CreateInviteCodeResponse, UserProfile } from '@carelog/shared';
+import type { CreateInviteCodeResponse, MedicationLog, UserProfile } from '@carelog/shared';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ApiError } from '@/api/client';
 import { createInviteCode, fetchMyElders } from '@/api/links';
+import { fetchLogs } from '@/api/logs';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { decisionColor, describeDecision, summarizeTodaySlots } from '@/features/guardian/today-slots';
 import { useAuthStore } from '@/store/auth-store';
 
-/** 보호자 모드 홈. 연동된 어르신 목록과 초대코드 발급을 제공한다.
- * 복약 현황 대시보드는 M2-16에서 구현한다. */
-export default function GuardianHomeScreen() {
+function startOfToday(): string {
+  const date = new Date();
+  date.setHours(0, 0, 0, 0);
+  return date.toISOString();
+}
+
+/** 보호자 대시보드(PRD 4.3.2). 오늘의 복약 현황을 시간대별 카드로 보여주고,
+ * 어르신 전환·초대코드 발급을 제공한다. 실시간 갱신은 M2-20에서 붙인다. */
+export default function GuardianDashboardScreen() {
   const router = useRouter();
   const loadAuth = useAuthStore((state) => state.load);
   const isAuthLoaded = useAuthStore((state) => state.isLoaded);
   const accessToken = useAuthStore((state) => state.accessToken);
 
   const [elders, setElders] = useState<UserProfile[]>([]);
+  const [selectedElderId, setSelectedElderId] = useState<string | null>(null);
+  const [logs, setLogs] = useState<MedicationLog[]>([]);
   const [inviteCode, setInviteCode] = useState<CreateInviteCodeResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     void loadAuth();
   }, [loadAuth]);
 
-  const loadElders = useCallback(async () => {
+  const loadDashboard = useCallback(async () => {
     if (!isAuthLoaded || !accessToken) return;
 
     try {
-      setElders(await fetchMyElders());
+      const elderList = await fetchMyElders();
+      setElders(elderList);
+
+      const elderId = selectedElderId ?? elderList[0]?.id ?? null;
+      setSelectedElderId(elderId);
+
+      if (elderId) {
+        setLogs(await fetchLogs({ elderId, from: startOfToday() }));
+      } else {
+        setLogs([]);
+      }
       setErrorMessage(null);
     } catch (error) {
-      setErrorMessage(
-        error instanceof ApiError ? error.message : '어르신 목록을 불러오지 못했어요.',
-      );
+      setErrorMessage(error instanceof ApiError ? error.message : '현황을 불러오지 못했어요.');
     } finally {
       setIsLoading(false);
+      setIsRefreshing(false);
     }
-  }, [accessToken, isAuthLoaded]);
+  }, [accessToken, isAuthLoaded, selectedElderId]);
 
   useEffect(() => {
-    // loadElders의 setState는 모두 await 이후(마이크로태스크)에 실행되므로 동기 연쇄 렌더는 발생하지 않는다.
+    // loadDashboard의 setState는 모두 await 이후(마이크로태스크)에 실행되므로 동기 연쇄 렌더는 발생하지 않는다.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    void loadElders();
-  }, [loadElders]);
+    void loadDashboard();
+  }, [loadDashboard]);
 
   const handleCreateInviteCode = async () => {
-    setErrorMessage(null);
     try {
       setInviteCode(await createInviteCode());
+      setErrorMessage(null);
     } catch (error) {
-      setErrorMessage(
-        error instanceof ApiError ? error.message : '초대코드를 발급하지 못했어요.',
-      );
+      setErrorMessage(error instanceof ApiError ? error.message : '초대코드를 발급하지 못했어요.');
     }
   };
 
   if (isAuthLoaded && !accessToken) {
     return (
       <ThemedView style={styles.container}>
-        <SafeAreaView style={styles.safeArea}>
+        <SafeAreaView style={styles.centered}>
           <ThemedText type="title">보호자 모드</ThemedText>
           <ThemedText>로그인이 필요해요</ThemedText>
           <Pressable
@@ -78,56 +96,111 @@ export default function GuardianHomeScreen() {
     );
   }
 
+  const slots = summarizeTodaySlots(logs);
+  const selectedElder = elders.find((elder) => elder.id === selectedElderId) ?? null;
+
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
-        <ThemedText type="title">보호자 모드</ThemedText>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={() => {
+                setIsRefreshing(true);
+                void loadDashboard();
+              }}
+            />
+          }
+        >
+          <ThemedText type="title">오늘의 복약</ThemedText>
 
-        <ThemedView type="backgroundElement" style={styles.card}>
-          <ThemedText type="subtitle">연동된 어르신</ThemedText>
+          {elders.length > 1 ? (
+            <ThemedView style={styles.elderTabs}>
+              {elders.map((elder) => (
+                <Pressable
+                  key={elder.id}
+                  style={[
+                    styles.elderTab,
+                    elder.id === selectedElderId && styles.elderTabSelected,
+                  ]}
+                  onPress={() => setSelectedElderId(elder.id)}
+                >
+                  <ThemedText type="smallBold">{elder.name}</ThemedText>
+                </Pressable>
+              ))}
+            </ThemedView>
+          ) : null}
+
           {isLoading ? (
-            <ActivityIndicator />
-          ) : elders.length > 0 ? (
-            elders.map((elder) => (
-              <ThemedText key={elder.id}>
-                {elder.name} · {elder.phone}
-              </ThemedText>
-            ))
-          ) : (
-            <ThemedText type="small">
-              아직 연동된 어르신이 없어요. 초대코드를 발급해 어르신 기기에서 입력해 주세요.
-            </ThemedText>
-          )}
-        </ThemedView>
-
-        <ThemedView type="backgroundElement" style={styles.card}>
-          <ThemedText type="subtitle">초대코드</ThemedText>
-          {inviteCode ? (
-            <>
-              <ThemedText style={styles.inviteCode}>{inviteCode.code}</ThemedText>
+            <ActivityIndicator size="large" style={styles.loader} />
+          ) : elders.length === 0 ? (
+            <ThemedView type="backgroundElement" style={styles.card}>
+              <ThemedText type="subtitle">연동된 어르신이 없어요</ThemedText>
               <ThemedText type="small">
-                {new Date(inviteCode.expiresAt).toLocaleString('ko-KR')}까지 사용할 수 있어요
+                초대코드를 발급해 어르신 기기에서 입력하면 복약 현황을 볼 수 있어요.
               </ThemedText>
-            </>
+            </ThemedView>
           ) : (
-            <ThemedText type="small">어르신 기기 설정에 사용할 코드를 발급하세요.</ThemedText>
+            <>
+              {selectedElder ? (
+                <ThemedText type="small">{selectedElder.name} 어르신</ThemedText>
+              ) : null}
+              {slots.map((slot) => (
+                <ThemedView key={slot.slot} type="backgroundElement" style={styles.slotCard}>
+                  <ThemedView style={styles.slotHeader}>
+                    <ThemedText type="subtitle">{slot.label}</ThemedText>
+                    <ThemedView
+                      style={[styles.badge, { backgroundColor: decisionColor(slot.decision) }]}
+                    >
+                      <ThemedText type="smallBold" style={styles.badgeText}>
+                        {describeDecision(slot.decision)}
+                      </ThemedText>
+                    </ThemedView>
+                  </ThemedView>
+                  {slot.takenAt ? (
+                    <ThemedText type="small">
+                      {new Date(slot.takenAt).toLocaleTimeString('ko-KR', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </ThemedText>
+                  ) : null}
+                </ThemedView>
+              ))}
+            </>
           )}
-          <Pressable style={styles.primaryButton} onPress={() => void handleCreateInviteCode()}>
-            <ThemedText type="subtitle" themeColor="background">
-              {inviteCode ? '새 코드 발급' : '초대코드 발급'}
+
+          <ThemedView type="backgroundElement" style={styles.card}>
+            <ThemedText type="subtitle">초대코드</ThemedText>
+            {inviteCode ? (
+              <>
+                <ThemedText style={styles.inviteCode}>{inviteCode.code}</ThemedText>
+                <ThemedText type="small">
+                  {new Date(inviteCode.expiresAt).toLocaleString('ko-KR')}까지 사용할 수 있어요
+                </ThemedText>
+              </>
+            ) : (
+              <ThemedText type="small">어르신 기기 설정에 사용할 코드를 발급하세요.</ThemedText>
+            )}
+            <Pressable style={styles.primaryButton} onPress={() => void handleCreateInviteCode()}>
+              <ThemedText type="subtitle" themeColor="background">
+                {inviteCode ? '새 코드 발급' : '초대코드 발급'}
+              </ThemedText>
+            </Pressable>
+          </ThemedView>
+
+          {errorMessage ? (
+            <ThemedText type="small" style={styles.errorText}>
+              {errorMessage}
             </ThemedText>
+          ) : null}
+
+          <Pressable style={styles.devLink} onPress={() => router.push('/dev/recognition-settings')}>
+            <ThemedText type="link">개발자 설정 (QA)</ThemedText>
           </Pressable>
-        </ThemedView>
-
-        {errorMessage ? (
-          <ThemedText type="small" style={styles.errorText}>
-            {errorMessage}
-          </ThemedText>
-        ) : null}
-
-        <Pressable style={styles.devLink} onPress={() => router.push('/dev/recognition-settings')}>
-          <ThemedText type="link">개발자 설정 (QA)</ThemedText>
-        </Pressable>
+        </ScrollView>
       </SafeAreaView>
     </ThemedView>
   );
@@ -139,14 +212,60 @@ const styles = StyleSheet.create({
   },
   safeArea: {
     flex: 1,
+  },
+  scrollContent: {
     paddingHorizontal: 24,
-    paddingTop: 24,
+    paddingVertical: 24,
+    gap: 12,
+  },
+  centered: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
     gap: 16,
+  },
+  loader: {
+    marginVertical: 24,
+  },
+  elderTabs: {
+    flexDirection: 'row',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  elderTab: {
+    borderWidth: 1,
+    borderColor: '#D0D5DD',
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+  },
+  elderTabSelected: {
+    borderColor: '#208AEF',
+    backgroundColor: '#E6F1FD',
+  },
+  slotCard: {
+    borderRadius: 16,
+    padding: 16,
+    gap: 6,
+  },
+  slotHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  badge: {
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+  },
+  badgeText: {
+    color: '#FFFFFF',
   },
   card: {
     borderRadius: 16,
     padding: 16,
     gap: 8,
+    marginTop: 8,
   },
   inviteCode: {
     fontSize: 40,
