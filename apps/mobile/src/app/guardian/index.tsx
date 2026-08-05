@@ -172,6 +172,20 @@ export default function GuardianDashboardScreen() {
             </>
           )}
 
+          {selectedElderId ? (
+            <Pressable
+              style={styles.secondaryButton}
+              onPress={() =>
+                router.push({
+                  pathname: '/guardian/timeline',
+                  params: { elderId: selectedElderId },
+                })
+              }
+            >
+              <ThemedText type="subtitle">복약 타임라인 보기</ThemedText>
+            </Pressable>
+          ) : null}
+
           <ThemedView type="backgroundElement" style={styles.card}>
             <ThemedText type="subtitle">초대코드</ThemedText>
             {inviteCode ? (
@@ -275,6 +289,14 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     backgroundColor: '#208AEF',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  secondaryButton: {
+    borderWidth: 1,
+    borderColor: '#208AEF',
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
