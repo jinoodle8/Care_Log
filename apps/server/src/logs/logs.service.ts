@@ -8,6 +8,7 @@ import type {
 } from '@prisma/client';
 import { AppException } from '../common/exceptions/app.exception';
 import { PrismaService } from '../prisma/prisma.service';
+import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { CreateLogDto } from './dto/create-log.dto';
 import { QueryLogsDto } from './dto/query-logs.dto';
 import { QueryStatsDto } from './dto/query-stats.dto';
@@ -19,7 +20,10 @@ export interface AuthUser {
 
 @Injectable()
 export class LogsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly realtime: RealtimeGateway,
+  ) {}
 
   /** 어르신 기기만 자신의 로그를 올릴 수 있다. elderId는 토큰에서 유도한다. */
   async create(user: AuthUser, dto: CreateLogDto): Promise<MedicationLog> {
@@ -45,7 +49,11 @@ export class LogsService {
           Prisma.InputJsonValue | undefined,
       },
     });
-    return toMedicationLog(record);
+
+    const log = toMedicationLog(record);
+    // 보호자 앱이 새로고침 없이 현황을 갱신할 수 있도록 브로드캐스트한다(M2-19).
+    this.realtime.emitLogCreated(log);
+    return log;
   }
 
   async findMany(

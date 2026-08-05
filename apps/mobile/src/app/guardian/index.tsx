@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ApiError } from '@/api/client';
 import { createInviteCode, fetchMyElders } from '@/api/links';
 import { fetchLogs } from '@/api/logs';
+import { subscribeToElderLogs } from '@/api/realtime';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { decisionColor, describeDecision, summarizeTodaySlots } from '@/features/guardian/today-slots';
@@ -67,6 +68,22 @@ export default function GuardianDashboardScreen() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadDashboard();
   }, [loadDashboard]);
+
+  // 어르신이 촬영을 마치면 새로고침 없이 카드가 갱신되도록 실시간 구독한다(M2-20).
+  useEffect(() => {
+    if (!accessToken || !selectedElderId) return;
+
+    const subscription = subscribeToElderLogs({
+      accessToken,
+      elderId: selectedElderId,
+      onLogCreated: (log) => {
+        if (log.elderId !== selectedElderId) return;
+        setLogs((prev) => (prev.some((item) => item.id === log.id) ? prev : [log, ...prev]));
+      },
+    });
+
+    return () => subscription.close();
+  }, [accessToken, selectedElderId]);
 
   const handleCreateInviteCode = async () => {
     try {

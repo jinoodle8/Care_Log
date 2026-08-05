@@ -6,6 +6,7 @@ import { AuthModule } from './auth/auth.module';
 import { LinksModule } from './links/links.module';
 import { LogsModule } from './logs/logs.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { RealtimeModule } from './realtime/realtime.module';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { PrismaModule } from './prisma/prisma.module';
     PrismaModule,
     AuthModule,
     LinksModule,
+    RealtimeModule,
     LogsModule,
   ],
   controllers: [AppController],
