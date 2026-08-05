@@ -1,4 +1,4 @@
-import axios, { type AxiosError } from 'axios';
+import { create as createAxios, type AxiosError } from 'axios';
 
 interface ApiErrorResponse {
   statusCode: number;
@@ -24,15 +24,24 @@ function isApiErrorResponse(data: unknown): data is ApiErrorResponse {
   return typeof data === 'object' && data !== null && typeof (data as { code?: unknown }).code === 'string';
 }
 
-export const apiClient = axios.create({
+export const apiClient = createAxios({
   baseURL: process.env.EXPO_PUBLIC_API_BASE_URL ?? 'http://localhost:3000',
   timeout: 10000,
 });
 
+/** 로그인/로그아웃 시 useAuthStore가 호출해 Authorization 헤더를 갱신한다. */
+export function setAuthToken(accessToken: string | null): void {
+  if (accessToken) {
+    apiClient.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+  } else {
+    delete apiClient.defaults.headers.common.Authorization;
+  }
+}
+
 apiClient.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
-    // TODO(M2-14/M2-15): 401 응답 시 리프레시 토큰으로 1회 재시도 후 실패하면 로그아웃 처리한다.
+    // TODO(M2-15): 401 응답 시 리프레시 토큰으로 1회 재시도 후 실패하면 로그아웃 처리한다.
     if (isApiErrorResponse(error.response?.data)) {
       return Promise.reject(new ApiError(error.response.data));
     }

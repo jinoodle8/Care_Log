@@ -40,7 +40,6 @@ export default function AnalyzingScreen() {
   const runAnalysis = useCallback(async () => {
     if (!isRecognitionSettingsLoaded || !isElderSessionLoaded) return;
 
-    setHasError(false);
     try {
       const engine = getRecognitionEngine({ demoMode, takenRate, uncertainRate });
       const result = await engine.analyze({ durationMs: 15000, demoMode });
@@ -77,6 +76,8 @@ export default function AnalyzingScreen() {
   ]);
 
   useEffect(() => {
+    // runAnalysis의 setState는 모두 await 이후(마이크로태스크)에 실행되므로 동기 연쇄 렌더는 발생하지 않는다.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void runAnalysis();
   }, [runAnalysis]);
 
@@ -88,7 +89,13 @@ export default function AnalyzingScreen() {
             확인하지 못했어요
           </ThemedText>
           <ThemedText style={styles.centerText}>다시 시도해 주세요</ThemedText>
-          <Pressable style={styles.retryButton} onPress={() => void runAnalysis()}>
+          <Pressable
+            style={styles.retryButton}
+            onPress={() => {
+              setHasError(false);
+              void runAnalysis();
+            }}
+          >
             <ThemedText type="subtitle">다시 시도하기</ThemedText>
           </Pressable>
         </SafeAreaView>

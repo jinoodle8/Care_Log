@@ -16,25 +16,30 @@ function clampRate(value: number): number {
 /** 개발자 설정 화면. 어르신 모드에는 노출하지 않고, 보호자 모드에서만 진입 가능하게 한다 (PRD 밖 QA용 화면).
  * 여기서 바꾼 값은 다음 촬영(M2-07 분석 중 화면)의 MockRecognitionEngine 호출에 반영된다. */
 export default function RecognitionSettingsScreen() {
-  const { demoMode, takenRate, uncertainRate, isLoaded, load, setDemoMode, setTakenRate, setUncertainRate } =
-    useRecognitionSettingsStore();
-  const { elderId, isLoaded: isElderSessionLoaded, load: loadElderSession, setElderId } = useElderSessionStore();
-  const [elderIdDraft, setElderIdDraft] = useState('');
+  const isLoaded = useRecognitionSettingsStore((state) => state.isLoaded);
+  const load = useRecognitionSettingsStore((state) => state.load);
+  const isElderSessionLoaded = useElderSessionStore((state) => state.isLoaded);
+  const loadElderSession = useElderSessionStore((state) => state.load);
 
   useEffect(() => {
     void load();
     void loadElderSession();
   }, [load, loadElderSession]);
 
-  useEffect(() => {
-    if (elderId) {
-      setElderIdDraft(elderId);
-    }
-  }, [elderId]);
-
+  // 저장된 값을 다 읽은 뒤에 폼을 마운트해, 로컬 draft state를 effect로 동기화하지 않고
+  // 처음부터 올바른 값으로 초기화한다.
   if (!isLoaded || !isElderSessionLoaded) {
     return null;
   }
+
+  return <RecognitionSettingsForm />;
+}
+
+function RecognitionSettingsForm() {
+  const { demoMode, takenRate, uncertainRate, setDemoMode, setTakenRate, setUncertainRate } =
+    useRecognitionSettingsStore();
+  const { elderId, setElderId } = useElderSessionStore();
+  const [elderIdDraft, setElderIdDraft] = useState(elderId ?? '');
 
   const missedRate = clampRate(1 - takenRate - uncertainRate);
 
