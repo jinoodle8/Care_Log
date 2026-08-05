@@ -6,10 +6,31 @@ import { AppModule } from './../src/app.module';
 import { HttpExceptionFilter } from './../src/common/filters/http-exception.filter';
 import { PrismaService } from './../src/prisma/prisma.service';
 
+interface AuthResponse {
+  accessToken: string;
+  user: { id: string };
+}
+
+interface RedeemResponse {
+  accessToken: string;
+  elder: { id: string };
+}
+
 describe('LogsController (e2e)', () => {
   let app: INestApplication<App>;
   let prisma: PrismaService;
+
+  const suffix = String(Date.now()).slice(-8);
+  const guardianPhone = `010${suffix}`;
+  const elderPhone = `011${suffix}`;
+  const otherGuardianPhone = `012${suffix}`;
+  const password = 'test-password-1234';
+
+  let guardianToken: string;
+  let guardianId: string;
+  let elderToken: string;
   let elderId: string;
+  let otherGuardianToken: string;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -26,21 +47,43 @@ describe('LogsController (e2e)', () => {
       }),
     );
     await app.init();
-
     prisma = app.get(PrismaService);
-    const elder = await prisma.user.create({
-      data: {
-        role: 'ELDER',
-        name: '테스트 어르신',
-        phone: `010-e2e-${Date.now()}`,
-      },
-    });
-    elderId = elder.id;
+
+    // 보호자 가입 → 초대코드 발급 → 어르신 연동(어르신 토큰 확보)
+    const guardianRes = await request(app.getHttpServer())
+      .post('/auth/signup')
+      .send({ name: '로그 테스트 보호자', phone: guardianPhone, password })
+      .expect(201);
+    guardianToken = (guardianRes.body as AuthResponse).accessToken;
+    guardianId = (guardianRes.body as AuthResponse).user.id;
+
+    const codeRes = await request(app.getHttpServer())
+      .post('/links/invite-code')
+      .set('Authorization', `Bearer ${guardianToken}`)
+      .expect(201);
+    const { code } = codeRes.body as { code: string };
+
+    const redeemRes = await request(app.getHttpServer())
+      .post('/links/redeem')
+      .send({ code, elderName: '로그 테스트 어르신', elderPhone })
+      .expect(201);
+    elderToken = (redeemRes.body as RedeemResponse).accessToken;
+    elderId = (redeemRes.body as RedeemResponse).elder.id;
+
+    const otherRes = await request(app.getHttpServer())
+      .post('/auth/signup')
+      .send({ name: '무관한 보호자', phone: otherGuardianPhone, password })
+      .expect(201);
+    otherGuardianToken = (otherRes.body as AuthResponse).accessToken;
   }, 30000);
 
   afterAll(async () => {
     await prisma.medicationLog.deleteMany({ where: { elderId } });
-    await prisma.user.delete({ where: { id: elderId } });
+    await prisma.link.deleteMany({ where: { guardianId } });
+    await prisma.inviteCode.deleteMany({ where: { guardianId } });
+    await prisma.user.deleteMany({
+      where: { phone: { in: [guardianPhone, elderPhone, otherGuardianPhone] } },
+    });
     await app.close();
   });
 
@@ -48,7 +91,6 @@ describe('LogsController (e2e)', () => {
     overrides: Partial<Record<string, unknown>> = {},
   ) {
     return {
-      elderId,
       takenAt: new Date().toISOString(),
       decision: 'TAKEN',
       sequenceConf: 0.94,
@@ -62,9 +104,10 @@ describe('LogsController (e2e)', () => {
     };
   }
 
-  it('POST /logs로 로그를 생성하면 201과 함께 생성된 로그를 반환한다', async () => {
+  it('어르신 토큰으로 POST /logs 하면 토큰의 elderId로 로그를 생성한다', async () => {
     const res = await request(app.getHttpServer())
       .post('/logs')
+      .set('Authorization', `Bearer ${elderToken}`)
       .send(buildCreateLogPayload())
       .expect(201);
 
@@ -74,9 +117,25 @@ describe('LogsController (e2e)', () => {
     expect(body.decision).toBe('TAKEN');
   });
 
-  it('POST /logs 생성 후 GET /logs?elderId=...로 조회하면 반영되어 있다', async () => {
+  it('토큰 없이 POST /logs 하면 401을 반환한다', async () => {
     await request(app.getHttpServer())
       .post('/logs')
+      .send(buildCreateLogPayload())
+      .expect(401);
+  });
+
+  it('보호자 토큰으로 POST /logs 하면 403을 반환한다', async () => {
+    await request(app.getHttpServer())
+      .post('/logs')
+      .set('Authorization', `Bearer ${guardianToken}`)
+      .send(buildCreateLogPayload())
+      .expect(403);
+  });
+
+  it('연동된 보호자는 GET /logs로 어르신 로그를 조회할 수 있다', async () => {
+    await request(app.getHttpServer())
+      .post('/logs')
+      .set('Authorization', `Bearer ${elderToken}`)
       .send(
         buildCreateLogPayload({ decision: 'UNCERTAIN', sequenceConf: 0.75 }),
       )
@@ -85,68 +144,73 @@ describe('LogsController (e2e)', () => {
     const res = await request(app.getHttpServer())
       .get('/logs')
       .query({ elderId })
+      .set('Authorization', `Bearer ${guardianToken}`)
       .expect(200);
 
     const body = res.body as Array<{ elderId: string; decision: string }>;
-    expect(Array.isArray(body)).toBe(true);
     expect(body.some((log) => log.decision === 'UNCERTAIN')).toBe(true);
     expect(body.every((log) => log.elderId === elderId)).toBe(true);
   });
 
-  it('GET /logs?elderId=&decision=UNCERTAIN 필터가 정상 동작한다', async () => {
+  it('연동되지 않은 보호자가 GET /logs 하면 NOT_LINKED_ELDER 403을 반환한다', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/logs')
+      .query({ elderId })
+      .set('Authorization', `Bearer ${otherGuardianToken}`)
+      .expect(403);
+
+    expect((res.body as { code: string }).code).toBe('NOT_LINKED_ELDER');
+  });
+
+  it('토큰 없이 GET /logs 하면 401을 반환한다', async () => {
+    await request(app.getHttpServer())
+      .get('/logs')
+      .query({ elderId })
+      .expect(401);
+  });
+
+  it('decision 필터가 정상 동작한다', async () => {
     const res = await request(app.getHttpServer())
       .get('/logs')
       .query({ elderId, decision: 'MISSED' })
+      .set('Authorization', `Bearer ${guardianToken}`)
       .expect(200);
 
     const body = res.body as Array<{ decision: string }>;
     expect(body.every((log) => log.decision === 'MISSED')).toBe(true);
   });
 
-  it('잘못된 decision 값으로 POST /logs 요청 시 400을 반환한다', async () => {
+  it('잘못된 decision 값으로 POST /logs 하면 400을 반환한다', async () => {
     await request(app.getHttpServer())
       .post('/logs')
+      .set('Authorization', `Bearer ${elderToken}`)
       .send(buildCreateLogPayload({ decision: 'INVALID' }))
       .expect(400);
   });
 
-  it('elderId 없이 GET /logs 요청 시 400을 반환한다', async () => {
-    await request(app.getHttpServer()).get('/logs').expect(400);
+  it('elderId 없이 GET /logs 하면 400을 반환한다', async () => {
+    await request(app.getHttpServer())
+      .get('/logs')
+      .set('Authorization', `Bearer ${guardianToken}`)
+      .expect(400);
   });
 
   describe('GET /logs/stats', () => {
-    let statsElderId: string;
+    it('스케줄(로그) 4건 중 TAKEN 3건이면 이행률 75%를 반환한다', async () => {
+      await prisma.medicationLog.deleteMany({ where: { elderId } });
 
-    beforeAll(async () => {
-      const elder = await prisma.user.create({
-        data: {
-          role: 'ELDER',
-          name: '통계 테스트 어르신',
-          phone: `010-stats-${Date.now()}`,
-        },
-      });
-      statsElderId = elder.id;
-
-      const decisions = ['TAKEN', 'TAKEN', 'TAKEN', 'UNCERTAIN'];
-      for (const decision of decisions) {
+      for (const decision of ['TAKEN', 'TAKEN', 'TAKEN', 'UNCERTAIN']) {
         await request(app.getHttpServer())
           .post('/logs')
-          .send(buildCreateLogPayload({ elderId: statsElderId, decision }))
+          .set('Authorization', `Bearer ${elderToken}`)
+          .send(buildCreateLogPayload({ decision }))
           .expect(201);
       }
-    }, 30000);
 
-    afterAll(async () => {
-      await prisma.medicationLog.deleteMany({
-        where: { elderId: statsElderId },
-      });
-      await prisma.user.delete({ where: { id: statsElderId } });
-    });
-
-    it('스케줄(로그) 4건 중 TAKEN 3건이면 이행률 75%를 반환한다', async () => {
       const res = await request(app.getHttpServer())
         .get('/logs/stats')
-        .query({ elderId: statsElderId, range: 'day' })
+        .query({ elderId, range: 'day' })
+        .set('Authorization', `Bearer ${guardianToken}`)
         .expect(200);
 
       expect(res.body).toEqual({
@@ -157,13 +221,21 @@ describe('LogsController (e2e)', () => {
         scheduledCount: 4,
         adherenceRate: 0.75,
       });
-    });
+    }, 30000);
 
     it('range 값이 잘못되면 400을 반환한다', async () => {
       await request(app.getHttpServer())
         .get('/logs/stats')
-        .query({ elderId: statsElderId, range: 'month' })
+        .query({ elderId, range: 'month' })
+        .set('Authorization', `Bearer ${guardianToken}`)
         .expect(400);
+    });
+
+    it('토큰 없이 호출하면 401을 반환한다', async () => {
+      await request(app.getHttpServer())
+        .get('/logs/stats')
+        .query({ elderId, range: 'day' })
+        .expect(401);
     });
   });
 });

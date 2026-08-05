@@ -7,7 +7,7 @@ import { uploadLog } from '@/api/logs';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { getRecognitionEngine } from '@/recognition';
-import { useElderSessionStore } from '@/store/elder-session-store';
+import { useAuthStore } from '@/store/auth-store';
 import { useLatestRecognitionResultStore } from '@/store/latest-recognition-result-store';
 import { useRecognitionSettingsStore } from '@/store/recognition-settings-store';
 
@@ -26,29 +26,29 @@ export default function AnalyzingScreen() {
   const takenRate = useRecognitionSettingsStore((state) => state.takenRate);
   const uncertainRate = useRecognitionSettingsStore((state) => state.uncertainRate);
 
-  const loadElderSession = useElderSessionStore((state) => state.load);
-  const isElderSessionLoaded = useElderSessionStore((state) => state.isLoaded);
-  const elderId = useElderSessionStore((state) => state.elderId);
+  const loadAuth = useAuthStore((state) => state.load);
+  const isAuthLoaded = useAuthStore((state) => state.isLoaded);
+  const accessToken = useAuthStore((state) => state.accessToken);
 
   const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
     void loadRecognitionSettings();
-    void loadElderSession();
-  }, [loadRecognitionSettings, loadElderSession]);
+    void loadAuth();
+  }, [loadRecognitionSettings, loadAuth]);
 
   const runAnalysis = useCallback(async () => {
-    if (!isRecognitionSettingsLoaded || !isElderSessionLoaded) return;
+    if (!isRecognitionSettingsLoaded || !isAuthLoaded) return;
 
     try {
       const engine = getRecognitionEngine({ demoMode, takenRate, uncertainRate });
       const result = await engine.analyze({ durationMs: 15000, demoMode });
       setResult(result);
 
-      if (elderId) {
+      // elderId는 서버가 토큰에서 유도하므로, 연동이 끝난 기기(토큰 보유)에서만 업로드한다.
+      if (accessToken) {
         try {
           await uploadLog({
-            elderId,
             takenAt: new Date().toISOString(),
             decision: result.finalDecision,
             sequenceConf: result.sequenceConf,
@@ -65,9 +65,9 @@ export default function AnalyzingScreen() {
       setHasError(true);
     }
   }, [
+    accessToken,
     demoMode,
-    elderId,
-    isElderSessionLoaded,
+    isAuthLoaded,
     isRecognitionSettingsLoaded,
     router,
     setResult,

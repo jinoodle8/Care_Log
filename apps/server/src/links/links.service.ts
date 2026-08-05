@@ -1,8 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { INVITE_CODE_EXPIRES_HOURS } from '@carelog/shared';
-import type { CreateInviteCodeResponse, UserProfile } from '@carelog/shared';
+import type {
+  AuthTokens,
+  CreateInviteCodeResponse,
+  UserProfile,
+} from '@carelog/shared';
 import { randomInt } from 'node:crypto';
+import { AuthService } from '../auth/auth.service';
 import { AppException } from '../common/exceptions/app.exception';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedeemInviteCodeDto } from './dto/redeem-invite-code.dto';
@@ -12,7 +17,7 @@ const CODE_ALPHABET = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
 const CODE_LENGTH = 6;
 const MAX_CODE_GENERATION_ATTEMPTS = 5;
 
-export interface RedeemResult {
+export interface RedeemResult extends AuthTokens {
   elder: UserProfile;
   linkId: string;
 }
@@ -22,6 +27,7 @@ export class LinksService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
+    private readonly authService: AuthService,
   ) {}
 
   /** 보호자가 어르신 기기 설정용 초대코드를 발급한다(기본 24시간 유효). */
@@ -94,12 +100,12 @@ export class LinksService {
       );
     }
 
-    return this.prisma.$transaction(async (tx) => {
-      const elder = await tx.user.create({
+    const { elder, linkId } = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.user.create({
         data: { role: 'ELDER', name: dto.elderName, phone: dto.elderPhone },
       });
       const link = await tx.link.create({
-        data: { elderId: elder.id, guardianId: invite.guardianId },
+        data: { elderId: created.id, guardianId: invite.guardianId },
       });
       await tx.inviteCode.update({
         where: { id: invite.id },
@@ -108,14 +114,18 @@ export class LinksService {
 
       return {
         elder: {
-          id: elder.id,
-          role: elder.role,
-          name: elder.name,
-          phone: elder.phone,
+          id: created.id,
+          role: created.role,
+          name: created.name,
+          phone: created.phone,
         },
         linkId: link.id,
       };
     });
+
+    // 어르신 기기가 이후 로그 업로드 시 사용할 토큰을 함께 발급한다(M2-15 가드 적용 대응).
+    const tokens = await this.authService.issueTokensFor(elder);
+    return { elder, linkId, ...tokens };
   }
 
   /** 보호자에게 연동된 어르신 목록. 다중 보호자·다중 어르신을 모두 지원한다. */

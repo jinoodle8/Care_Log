@@ -7,6 +7,7 @@ import { ApiError } from '@/api/client';
 import { redeemInviteCode } from '@/api/links';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { useAuthStore } from '@/store/auth-store';
 import { useElderSessionStore } from '@/store/elder-session-store';
 import { useRoleStore } from '@/store/role-store';
 
@@ -16,6 +17,7 @@ export default function ElderSetupScreen() {
   const router = useRouter();
   const setElderId = useElderSessionStore((state) => state.setElderId);
   const setRole = useRoleStore((state) => state.setRole);
+  const setAuth = useAuthStore((state) => state.setAuth);
 
   const [code, setCode] = useState('');
   const [elderName, setElderName] = useState('');
@@ -38,6 +40,12 @@ export default function ElderSetupScreen() {
         elderPhone: elderPhone.trim(),
       });
 
+      // 어르신 기기도 로그 업로드 시 인증이 필요하므로 발급받은 토큰을 함께 저장한다.
+      await setAuth({
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+        user: result.elder,
+      });
       await setElderId(result.elder.id);
       await setRole('ELDER');
       router.replace('/elder');

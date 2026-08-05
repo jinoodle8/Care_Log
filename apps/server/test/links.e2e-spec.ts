@@ -100,9 +100,14 @@ describe('LinksController (e2e)', () => {
     const body = res.body as {
       elder: { id: string; role: string };
       linkId: string;
+      accessToken: string;
+      refreshToken: string;
     };
     expect(body.elder.role).toBe('ELDER');
     expect(body.linkId).toEqual(expect.any(String));
+    // 어르신 기기가 이후 로그 업로드에 쓸 토큰이 함께 발급되어야 한다(M2-15).
+    expect(body.accessToken).toEqual(expect.any(String));
+    expect(body.refreshToken).toEqual(expect.any(String));
 
     const link = await prisma.link.findUnique({ where: { id: body.linkId } });
     expect(link).toMatchObject({ guardianId, elderId: body.elder.id });

@@ -1,7 +1,7 @@
-import type { CreateInviteCodeResponse, UserProfile } from '@carelog/shared';
+import type { AuthTokens, CreateInviteCodeResponse, UserProfile } from '@carelog/shared';
 import { apiClient } from './client';
 
-export interface RedeemResult {
+export interface RedeemResult extends AuthTokens {
   elder: UserProfile;
   linkId: string;
 }

@@ -40,10 +40,6 @@ export class DetectionDto {
 }
 
 export class CreateLogDto {
-  // TODO(M2-15): JWT 가드 도입 후 req.user.id에서 유도하고 이 필드는 제거한다.
-  @IsString()
-  elderId: string;
-
   @IsOptional()
   @IsString()
   scheduleId?: string;

@@ -108,6 +108,11 @@ export class AuthService {
     return { id: user.id, role: user.role, name: user.name, phone: user.phone };
   }
 
+  /** 초대코드 연동으로 갓 생성된 어르신 계정에 토큰을 발급할 때 사용한다(M2-13 links). */
+  issueTokensFor(user: UserProfile): Promise<AuthResult> {
+    return this.buildAuthResult(user.id, user.role, user.name, user.phone);
+  }
+
   private async buildAuthResult(
     id: string,
     role: Role,

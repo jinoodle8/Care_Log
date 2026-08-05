@@ -1,10 +1,9 @@
-import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Switch, TextInput } from 'react-native';
+import { useEffect } from 'react';
+import { Pressable, StyleSheet, Switch } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { useElderSessionStore } from '@/store/elder-session-store';
 import { useRecognitionSettingsStore } from '@/store/recognition-settings-store';
 
 const RATE_STEP = 0.05;
@@ -18,17 +17,13 @@ function clampRate(value: number): number {
 export default function RecognitionSettingsScreen() {
   const isLoaded = useRecognitionSettingsStore((state) => state.isLoaded);
   const load = useRecognitionSettingsStore((state) => state.load);
-  const isElderSessionLoaded = useElderSessionStore((state) => state.isLoaded);
-  const loadElderSession = useElderSessionStore((state) => state.load);
 
   useEffect(() => {
     void load();
-    void loadElderSession();
-  }, [load, loadElderSession]);
+  }, [load]);
 
-  // 저장된 값을 다 읽은 뒤에 폼을 마운트해, 로컬 draft state를 effect로 동기화하지 않고
-  // 처음부터 올바른 값으로 초기화한다.
-  if (!isLoaded || !isElderSessionLoaded) {
+  // 저장된 값을 다 읽은 뒤에 폼을 마운트해, 상태를 처음부터 올바른 값으로 초기화한다.
+  if (!isLoaded) {
     return null;
   }
 
@@ -38,8 +33,6 @@ export default function RecognitionSettingsScreen() {
 function RecognitionSettingsForm() {
   const { demoMode, takenRate, uncertainRate, setDemoMode, setTakenRate, setUncertainRate } =
     useRecognitionSettingsStore();
-  const { elderId, setElderId } = useElderSessionStore();
-  const [elderIdDraft, setElderIdDraft] = useState(elderId ?? '');
 
   const missedRate = clampRate(1 - takenRate - uncertainRate);
 
@@ -92,25 +85,6 @@ function RecognitionSettingsForm() {
         </ThemedView>
 
         <ThemedText type="small">MISSED 확률(자동 계산): {(missedRate * 100).toFixed(0)}%</ThemedText>
-
-        <ThemedView type="backgroundElement" style={styles.rateRow}>
-          <ThemedText type="subtitle">테스트용 elderId (QA)</ThemedText>
-          <ThemedText type="small">
-            실제 초대코드 연동(M2-14) 전까지, 로그 업로드 테스트용으로 서버 DB의 어르신 User id를 직접
-            입력합니다.
-          </ThemedText>
-          <TextInput
-            style={styles.textInput}
-            value={elderIdDraft}
-            onChangeText={setElderIdDraft}
-            placeholder="예: cljk3x9..."
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
-          <Pressable style={styles.saveButton} onPress={() => void setElderId(elderIdDraft.trim())}>
-            <ThemedText type="subtitle">저장</ThemedText>
-          </Pressable>
-        </ThemedView>
       </SafeAreaView>
     </ThemedView>
   );
