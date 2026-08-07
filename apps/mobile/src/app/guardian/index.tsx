@@ -203,6 +203,20 @@ export default function GuardianDashboardScreen() {
             </Pressable>
           ) : null}
 
+          {selectedElderId ? (
+            <Pressable
+              style={styles.secondaryButton}
+              onPress={() =>
+                router.push({
+                  pathname: '/guardian/schedules',
+                  params: { elderId: selectedElderId },
+                })
+              }
+            >
+              <ThemedText type="subtitle">복약 스케줄 설정</ThemedText>
+            </Pressable>
+          ) : null}
+
           <ThemedView type="backgroundElement" style={styles.card}>
             <ThemedText type="subtitle">초대코드</ThemedText>
             {inviteCode ? (
