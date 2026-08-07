@@ -97,6 +97,11 @@ describe('MissedDetectionService (e2e)', () => {
     await app.close();
   });
 
+  /** detectAndRecord는 전체 스케줄을 스캔하므로, 병렬로 도는 다른 스펙의 결과를 걸러낸다. */
+  function mine<T extends { elderId: string }>(logs: T[]): T[] {
+    return logs.filter((log) => log.elderId === elderId);
+  }
+
   async function createSchedule(time: string, enabled = true) {
     return request(app.getHttpServer())
       .post('/schedules')
@@ -108,7 +113,7 @@ describe('MissedDetectionService (e2e)', () => {
   it('유예 시간이 지나고 로그가 없으면 MISSED 로그를 만든다', async () => {
     await createSchedule('08:00');
 
-    const created = await service.detectAndRecord(at(9));
+    const created = mine(await service.detectAndRecord(at(9)));
 
     expect(created).toHaveLength(1);
     expect(created[0]).toMatchObject({
@@ -125,8 +130,8 @@ describe('MissedDetectionService (e2e)', () => {
   it('두 번 돌려도 중복 기록하지 않는다(멱등)', async () => {
     await createSchedule('08:00');
 
-    const first = await service.detectAndRecord(at(9));
-    const second = await service.detectAndRecord(at(9));
+    const first = mine(await service.detectAndRecord(at(9)));
+    const second = mine(await service.detectAndRecord(at(9)));
 
     expect(first).toHaveLength(1);
     expect(second).toHaveLength(0);
@@ -138,7 +143,7 @@ describe('MissedDetectionService (e2e)', () => {
   it('유예 시간 전에는 감지하지 않는다', async () => {
     await createSchedule('08:00');
 
-    const created = await service.detectAndRecord(at(8, 20));
+    const created = mine(await service.detectAndRecord(at(8, 20)));
 
     expect(created).toHaveLength(0);
     expect(await prisma.medicationLog.count({ where: { elderId } })).toBe(0);
@@ -158,7 +163,7 @@ describe('MissedDetectionService (e2e)', () => {
       })
       .expect(201);
 
-    const created = await service.detectAndRecord(at(9));
+    const created = mine(await service.detectAndRecord(at(9)));
 
     expect(created).toHaveLength(0);
     expect(
@@ -171,7 +176,7 @@ describe('MissedDetectionService (e2e)', () => {
   it('비활성 스케줄은 감지하지 않는다', async () => {
     await createSchedule('08:00', false);
 
-    const created = await service.detectAndRecord(at(9));
+    const created = mine(await service.detectAndRecord(at(9)));
 
     expect(created).toHaveLength(0);
   });

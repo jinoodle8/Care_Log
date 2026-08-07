@@ -7,6 +7,7 @@ import { AuthModule } from './auth/auth.module';
 import { LinksModule } from './links/links.module';
 import { LogsModule } from './logs/logs.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { PushModule } from './push/push.module';
 import { RealtimeModule } from './realtime/realtime.module';
 import { SchedulesModule } from './schedules/schedules.module';
 
@@ -17,6 +18,7 @@ import { SchedulesModule } from './schedules/schedules.module';
     PrismaModule,
     AuthModule,
     LinksModule,
+    PushModule,
     RealtimeModule,
     LogsModule,
     SchedulesModule,
