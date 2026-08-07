@@ -8,6 +8,8 @@ import type {
 } from '@prisma/client';
 import { AppException } from '../common/exceptions/app.exception';
 import { PrismaService } from '../prisma/prisma.service';
+import { guardianPushForDecision } from '../push/push-messages';
+import { PushService } from '../push/push.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { CreateLogDto } from './dto/create-log.dto';
 import { QueryLogsDto } from './dto/query-logs.dto';
@@ -23,6 +25,7 @@ export class LogsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly realtime: RealtimeGateway,
+    private readonly push: PushService,
   ) {}
 
   /** 어르신 기기만 자신의 로그를 올릴 수 있다. elderId는 토큰에서 유도한다. */
@@ -53,7 +56,30 @@ export class LogsService {
     const log = toMedicationLog(record);
     // 보호자 앱이 새로고침 없이 현황을 갱신할 수 있도록 브로드캐스트한다(M2-19).
     this.realtime.emitLogCreated(log);
+    await this.notifyGuardians(log);
     return log;
+  }
+
+  /** 복약 완료(M3-05)·수동확인 요청(M3-08) 푸시. 발송 실패가 로그 생성을 되돌리지 않는다. */
+  private async notifyGuardians(log: MedicationLog): Promise<void> {
+    const payload = guardianPushForDecision(
+      log.decision,
+      await this.elderNameOf(log.elderId),
+    );
+    if (!payload) return;
+
+    await this.push.sendToGuardiansOfElder(log.elderId, {
+      ...payload,
+      data: { ...payload.data, logId: log.id, elderId: log.elderId },
+    });
+  }
+
+  private async elderNameOf(elderId: string): Promise<string> {
+    const elder = await this.prisma.user.findUnique({
+      where: { id: elderId },
+      select: { name: true },
+    });
+    return elder?.name ?? '';
   }
 
   async findMany(

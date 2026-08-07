@@ -4,6 +4,8 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { MISSED_GRACE_MINUTES } from '@carelog/shared';
 import type { MedicationLog } from '@carelog/shared';
 import { PrismaService } from '../prisma/prisma.service';
+import { missedSchedulePush } from '../push/push-messages';
+import { PushService } from '../push/push.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { resolveMissedSchedules, type MissedTarget } from './missed-detection';
 
@@ -22,6 +24,7 @@ export class MissedDetectionService {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly realtime: RealtimeGateway,
+    private readonly push: PushService,
   ) {}
 
   @Cron(CronExpression.EVERY_MINUTE)
@@ -123,6 +126,18 @@ export class MissedDetectionService {
 
     // 보호자 화면이 새로고침 없이 미복용을 보도록 실시간으로도 알린다.
     this.realtime.emitLogCreated(log);
+
+    // 미복용 의심 푸시(M3-06). 발송 실패는 PushService가 삼키므로 감지 기록은 유지된다.
+    const elder = await this.prisma.user.findUnique({
+      where: { id: target.elderId },
+      select: { name: true },
+    });
+    const payload = missedSchedulePush(elder?.name ?? '');
+    await this.push.sendToGuardiansOfElder(target.elderId, {
+      ...payload,
+      data: { ...payload.data, logId: log.id, elderId: target.elderId },
+    });
+
     return log;
   }
 }
