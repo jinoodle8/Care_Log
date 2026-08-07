@@ -26,3 +26,15 @@ export async function fetchLogStats(params: {
   const response = await apiClient.get<LogStats>('/logs/stats', { params });
   return response.data;
 }
+
+/** UNCERTAIN 건을 복약 확인(TAKEN) 또는 미복용(MISSED)으로 정리한다. */
+export async function manualConfirmLog(
+  logId: string,
+  params: { decision: 'TAKEN' | 'MISSED'; note?: string },
+): Promise<MedicationLog> {
+  const response = await apiClient.patch<MedicationLog>(
+    `/logs/${logId}/manual-confirm`,
+    params,
+  );
+  return response.data;
+}

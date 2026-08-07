@@ -10,12 +10,14 @@ export interface RealtimeSubscription {
   close: () => void;
 }
 
-/** 어르신 room을 구독해 log.created 이벤트를 수신한다(TRD 5.3).
+/** 어르신 room을 구독해 log.created / log.updated 이벤트를 수신한다(TRD 5.3).
  * 연결/구독 실패는 화면을 막지 않도록 onError로만 알린다. */
 export function subscribeToElderLogs(params: {
   accessToken: string;
   elderId: string;
   onLogCreated: (log: MedicationLog) => void;
+  /** 수동확인 등으로 기존 기록이 바뀐 경우(M3-12) */
+  onLogUpdated?: (log: MedicationLog) => void;
   onError?: (message: string) => void;
 }): RealtimeSubscription {
   const socket: Socket = io(`${WS_URL}/realtime`, {
@@ -36,6 +38,10 @@ export function subscribeToElderLogs(params: {
 
   socket.on('log.created', (log: MedicationLog) => {
     params.onLogCreated(log);
+  });
+
+  socket.on('log.updated', (log: MedicationLog) => {
+    params.onLogUpdated?.(log);
   });
 
   socket.on('connect_error', () => params.onError?.('CONNECT_ERROR'));

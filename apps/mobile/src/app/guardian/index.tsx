@@ -80,6 +80,10 @@ export default function GuardianDashboardScreen() {
         if (log.elderId !== selectedElderId) return;
         setLogs((prev) => (prev.some((item) => item.id === log.id) ? prev : [log, ...prev]));
       },
+      onLogUpdated: (log) => {
+        if (log.elderId !== selectedElderId) return;
+        setLogs((prev) => prev.map((item) => (item.id === log.id ? log : item)));
+      },
     });
 
     return () => subscription.close();
@@ -115,6 +119,7 @@ export default function GuardianDashboardScreen() {
 
   const slots = summarizeTodaySlots(logs);
   const selectedElder = elders.find((elder) => elder.id === selectedElderId) ?? null;
+  const pendingCount = logs.filter((log) => log.decision === 'UNCERTAIN').length;
 
   return (
     <ThemedView style={styles.container}>
@@ -188,6 +193,22 @@ export default function GuardianDashboardScreen() {
               ))}
             </>
           )}
+
+          {selectedElderId ? (
+            <Pressable
+              style={[styles.secondaryButton, pendingCount > 0 && styles.attentionButton]}
+              onPress={() =>
+                router.push({
+                  pathname: '/guardian/confirmations',
+                  params: { elderId: selectedElderId },
+                })
+              }
+            >
+              <ThemedText type="subtitle">
+                {pendingCount > 0 ? `확인이 필요해요 (${pendingCount})` : '확인 요청 보기'}
+              </ThemedText>
+            </Pressable>
+          ) : null}
 
           {selectedElderId ? (
             <Pressable
@@ -332,6 +353,10 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     alignItems: 'center',
     marginTop: 8,
+  },
+  attentionButton: {
+    borderColor: '#F59E0B',
+    backgroundColor: '#FEF3C7',
   },
   errorText: {
     color: '#DC2626',
