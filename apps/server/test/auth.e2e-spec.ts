@@ -5,6 +5,7 @@ import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module';
 import { HttpExceptionFilter } from './../src/common/filters/http-exception.filter';
 import { PrismaService } from './../src/prisma/prisma.service';
+import { uniquePhoneSuffix } from './test-ids';
 
 interface AuthResponse {
   accessToken: string;
@@ -15,7 +16,7 @@ interface AuthResponse {
 describe('AuthController (e2e)', () => {
   let app: INestApplication<App>;
   let prisma: PrismaService;
-  const phone = `010${String(Date.now()).slice(-8)}`;
+  const phone = `010${uniquePhoneSuffix()}`;
   const password = 'test-password-1234';
 
   beforeAll(async () => {
@@ -138,7 +139,7 @@ describe('AuthController (e2e)', () => {
       .post('/auth/signup')
       .send({
         name: '짧은비번',
-        phone: `011${String(Date.now()).slice(-8)}`,
+        phone: `011${uniquePhoneSuffix()}`,
         password: 'short',
       })
       .expect(400);

@@ -7,6 +7,7 @@ import { HttpExceptionFilter } from './../src/common/filters/http-exception.filt
 import { PrismaService } from './../src/prisma/prisma.service';
 import { PushService, type PushPayload } from './../src/push/push.service';
 import { MissedDetectionService } from './../src/schedules/missed-detection.service';
+import { uniquePhoneSuffix } from './test-ids';
 
 interface AuthResponse {
   accessToken: string;
@@ -32,7 +33,7 @@ describe('푸시 연동 (e2e)', () => {
   /** 실제 Expo 호출 대신 발송 요청을 가로채 기록한다. */
   const sentPushes: { elderId: string; payload: PushPayload }[] = [];
 
-  const suffix = String(Date.now()).slice(-8);
+  const suffix = uniquePhoneSuffix();
   const guardianPhone = `010${suffix}`;
   const elderPhone = `011${suffix}`;
   const password = 'test-password-1234';
@@ -162,7 +163,7 @@ describe('푸시 연동 (e2e)', () => {
       .send({ elderId, slot: 'MORNING', time: '08:00' })
       .expect(201);
 
-    await missedDetection.detectAndRecord(at(9));
+    await missedDetection.detectAndRecord(at(9), [elderId]);
 
     const pushes = myPushes();
     expect(pushes).toHaveLength(1);

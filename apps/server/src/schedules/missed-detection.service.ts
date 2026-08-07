@@ -49,13 +49,20 @@ export class MissedDetectionService {
    * 기록된 로그 자체가 다음 주기의 중복 감지를 막아 멱등성을 보장한다.
    * 반환값은 이번 주기에 새로 감지한 건이며, 푸시 발송(M3-06)에서 사용한다.
    */
-  async detectAndRecord(now: Date = new Date()): Promise<MedicationLog[]> {
+  async detectAndRecord(
+    now: Date = new Date(),
+    /** 특정 어르신으로 범위를 좁힌다. 운영 크론은 생략해 전체를 스캔한다. */
+    elderIds?: string[],
+  ): Promise<MedicationLog[]> {
     const graceMinutes = Number(
       this.config.get<string>('MISSED_GRACE_MINUTES') ?? MISSED_GRACE_MINUTES,
     );
 
     const schedules = await this.prisma.schedule.findMany({
-      where: { enabled: true },
+      where: {
+        enabled: true,
+        elderId: elderIds ? { in: elderIds } : undefined,
+      },
     });
     if (schedules.length === 0) return [];
 

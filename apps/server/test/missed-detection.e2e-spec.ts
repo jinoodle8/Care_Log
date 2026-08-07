@@ -6,6 +6,7 @@ import { AppModule } from './../src/app.module';
 import { HttpExceptionFilter } from './../src/common/filters/http-exception.filter';
 import { PrismaService } from './../src/prisma/prisma.service';
 import { MissedDetectionService } from './../src/schedules/missed-detection.service';
+import { uniquePhoneSuffix } from './test-ids';
 
 interface AuthResponse {
   accessToken: string;
@@ -29,7 +30,7 @@ describe('MissedDetectionService (e2e)', () => {
   let prisma: PrismaService;
   let service: MissedDetectionService;
 
-  const suffix = String(Date.now()).slice(-8);
+  const suffix = uniquePhoneSuffix();
   const guardianPhone = `010${suffix}`;
   const elderPhone = `011${suffix}`;
   const password = 'test-password-1234';
@@ -113,7 +114,7 @@ describe('MissedDetectionService (e2e)', () => {
   it('유예 시간이 지나고 로그가 없으면 MISSED 로그를 만든다', async () => {
     await createSchedule('08:00');
 
-    const created = mine(await service.detectAndRecord(at(9)));
+    const created = mine(await service.detectAndRecord(at(9), [elderId]));
 
     expect(created).toHaveLength(1);
     expect(created[0]).toMatchObject({
@@ -130,8 +131,8 @@ describe('MissedDetectionService (e2e)', () => {
   it('두 번 돌려도 중복 기록하지 않는다(멱등)', async () => {
     await createSchedule('08:00');
 
-    const first = mine(await service.detectAndRecord(at(9)));
-    const second = mine(await service.detectAndRecord(at(9)));
+    const first = mine(await service.detectAndRecord(at(9), [elderId]));
+    const second = mine(await service.detectAndRecord(at(9), [elderId]));
 
     expect(first).toHaveLength(1);
     expect(second).toHaveLength(0);
@@ -143,7 +144,7 @@ describe('MissedDetectionService (e2e)', () => {
   it('유예 시간 전에는 감지하지 않는다', async () => {
     await createSchedule('08:00');
 
-    const created = mine(await service.detectAndRecord(at(8, 20)));
+    const created = mine(await service.detectAndRecord(at(8, 20), [elderId]));
 
     expect(created).toHaveLength(0);
     expect(await prisma.medicationLog.count({ where: { elderId } })).toBe(0);
@@ -163,7 +164,7 @@ describe('MissedDetectionService (e2e)', () => {
       })
       .expect(201);
 
-    const created = mine(await service.detectAndRecord(at(9)));
+    const created = mine(await service.detectAndRecord(at(9), [elderId]));
 
     expect(created).toHaveLength(0);
     expect(
@@ -176,14 +177,14 @@ describe('MissedDetectionService (e2e)', () => {
   it('비활성 스케줄은 감지하지 않는다', async () => {
     await createSchedule('08:00', false);
 
-    const created = mine(await service.detectAndRecord(at(9)));
+    const created = mine(await service.detectAndRecord(at(9), [elderId]));
 
     expect(created).toHaveLength(0);
   });
 
   it('감지된 MISSED 로그는 보호자 조회에도 나타난다', async () => {
     await createSchedule('08:00');
-    await service.detectAndRecord(at(9));
+    await service.detectAndRecord(at(9), [elderId]);
 
     const res = await request(app.getHttpServer())
       .get('/logs')

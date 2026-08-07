@@ -102,6 +102,11 @@ export class RealtimeGateway
     this.server?.to(elderRoom(log.elderId)).emit('log.created', log);
   }
 
+  /** 수동확인 등으로 기존 로그가 바뀌면 브로드캐스트한다(M3-12). */
+  emitLogUpdated(log: MedicationLog): void {
+    this.server?.to(elderRoom(log.elderId)).emit('log.updated', log);
+  }
+
   private async canAccessElder(
     user: SocketUser,
     elderId: string,

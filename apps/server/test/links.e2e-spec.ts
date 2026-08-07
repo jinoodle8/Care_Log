@@ -5,6 +5,7 @@ import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module';
 import { HttpExceptionFilter } from './../src/common/filters/http-exception.filter';
 import { PrismaService } from './../src/prisma/prisma.service';
+import { uniquePhoneSuffix } from './test-ids';
 
 interface AuthResponse {
   accessToken: string;
@@ -22,7 +23,7 @@ describe('LinksController (e2e)', () => {
   let accessToken: string;
   let guardianId: string;
 
-  const suffix = String(Date.now()).slice(-8);
+  const suffix = uniquePhoneSuffix();
   const guardianPhone = `010${suffix}`;
   const createdPhones: string[] = [guardianPhone];
 

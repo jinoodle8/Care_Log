@@ -7,6 +7,7 @@ import { io, type Socket } from 'socket.io-client';
 import { AppModule } from './../src/app.module';
 import { HttpExceptionFilter } from './../src/common/filters/http-exception.filter';
 import { PrismaService } from './../src/prisma/prisma.service';
+import { uniquePhoneSuffix } from './test-ids';
 
 interface AuthResponse {
   accessToken: string;
@@ -38,7 +39,7 @@ describe('RealtimeGateway (e2e)', () => {
   let prisma: PrismaService;
   let baseUrl: string;
 
-  const suffix = String(Date.now()).slice(-8);
+  const suffix = uniquePhoneSuffix();
   const guardianPhone = `010${suffix}`;
   const elderPhone = `011${suffix}`;
   const otherGuardianPhone = `012${suffix}`;

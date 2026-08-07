@@ -12,6 +12,7 @@ import { guardianPushForDecision } from '../push/push-messages';
 import { PushService } from '../push/push.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { CreateLogDto } from './dto/create-log.dto';
+import { ManualConfirmDto } from './dto/manual-confirm.dto';
 import { QueryLogsDto } from './dto/query-logs.dto';
 import { QueryStatsDto } from './dto/query-stats.dto';
 
@@ -80,6 +81,51 @@ export class LogsService {
       select: { name: true },
     });
     return elder?.name ?? '';
+  }
+
+  /**
+   * 보호자가 UNCERTAIN 건을 확인/미복용으로 정리한다(PRD 4.3.5).
+   * 처리 결과는 log.updated로 브로드캐스트해 다른 화면도 즉시 반영되게 한다(M3-12).
+   */
+  async manualConfirm(
+    user: AuthUser,
+    logId: string,
+    dto: ManualConfirmDto,
+  ): Promise<MedicationLog> {
+    const existing = await this.prisma.medicationLog.findUnique({
+      where: { id: logId },
+    });
+    if (!existing) {
+      throw new AppException('LOG_NOT_FOUND', '기록을 찾을 수 없습니다.', 404);
+    }
+    if (user.role !== 'GUARDIAN') {
+      throw new AppException(
+        'FORBIDDEN',
+        '보호자만 수동확인할 수 있습니다.',
+        403,
+      );
+    }
+    await this.assertCanAccessElder(user, existing.elderId);
+
+    if (existing.decision !== 'UNCERTAIN') {
+      throw new AppException(
+        'LOG_NOT_CONFIRMABLE',
+        '확인이 필요한 기록만 처리할 수 있습니다.',
+      );
+    }
+
+    const record = await this.prisma.medicationLog.update({
+      where: { id: logId },
+      data: {
+        decision: dto.decision,
+        manualConfirmedBy: user.id,
+        manualConfirmedAt: new Date(),
+      },
+    });
+
+    const log = toMedicationLog(record);
+    this.realtime.emitLogUpdated(log);
+    return log;
   }
 
   async findMany(
