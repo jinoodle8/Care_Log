@@ -8,7 +8,8 @@ import { HttpExceptionFilter } from './../src/common/filters/http-exception.filt
 describe('AppController (e2e)', () => {
   let app: INestApplication<App>;
 
-  beforeEach(async () => {
+  // 테스트가 앱 상태를 바꾸지 않으므로 한 번만 띄운다(모듈이 늘면서 매 테스트 재생성은 비용이 큼).
+  beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
@@ -23,7 +24,7 @@ describe('AppController (e2e)', () => {
       }),
     );
     await app.init();
-  });
+  }, 30000);
 
   it('/ (GET)', () => {
     return request(app.getHttpServer())
@@ -54,7 +55,7 @@ describe('AppController (e2e)', () => {
     expect(typeof body.timestamp).toBe('string');
   });
 
-  afterEach(async () => {
+  afterAll(async () => {
     await app.close();
   });
 });

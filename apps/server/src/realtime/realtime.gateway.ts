@@ -9,7 +9,7 @@ import {
   type OnGatewayDisconnect,
 } from '@nestjs/websockets';
 import type { MedicationLog, Role } from '@carelog/shared';
-import { Server, Socket } from 'socket.io';
+import { Server, Socket, type DefaultEventsMap } from 'socket.io';
 import type { JwtPayload } from '../auth/jwt.strategy';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -18,6 +18,18 @@ interface SocketUser {
   role: Role;
 }
 
+/** socket.data는 기본이 any이므로, 인증된 사용자를 담을 타입을 제네릭으로 지정한다. */
+interface SocketData {
+  user?: SocketUser;
+}
+
+type AppSocket = Socket<
+  DefaultEventsMap,
+  DefaultEventsMap,
+  DefaultEventsMap,
+  SocketData
+>;
+
 export function elderRoom(elderId: string): string {
   return `elder:${elderId}`;
 }
@@ -25,7 +37,9 @@ export function elderRoom(elderId: string): string {
 /** 보호자/어르신이 구독하는 실시간 채널(TRD 5.3). handshake의 JWT로 인증하고,
  * 연동된 어르신의 room에만 join을 허용한다. */
 @WebSocketGateway({ namespace: '/realtime', cors: { origin: '*' } })
-export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class RealtimeGateway
+  implements OnGatewayConnection, OnGatewayDisconnect
+{
   private readonly logger = new Logger(RealtimeGateway.name);
 
   @WebSocketServer()
@@ -37,7 +51,7 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
     private readonly prisma: PrismaService,
   ) {}
 
-  async handleConnection(client: Socket): Promise<void> {
+  async handleConnection(client: AppSocket): Promise<void> {
     const token = extractToken(client);
     if (!token) {
       client.disconnect(true);
@@ -46,25 +60,30 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
 
     try {
       const payload = await this.jwt.verifyAsync<JwtPayload>(token, {
-        secret: this.config.get<string>('JWT_ACCESS_SECRET') ?? 'dev-access-secret-change-me',
+        secret:
+          this.config.get<string>('JWT_ACCESS_SECRET') ??
+          'dev-access-secret-change-me',
       });
-      client.data.user = { id: payload.sub, role: payload.role } satisfies SocketUser;
+      client.data.user = {
+        id: payload.sub,
+        role: payload.role,
+      } satisfies SocketUser;
     } catch {
       client.disconnect(true);
     }
   }
 
-  handleDisconnect(client: Socket): void {
+  handleDisconnect(client: AppSocket): void {
     this.logger.debug(`disconnected: ${client.id}`);
   }
 
   /** 보호자는 연동된 어르신만, 어르신은 자기 자신만 구독할 수 있다. */
   @SubscribeMessage('subscribe')
   async handleSubscribe(
-    client: Socket,
+    client: AppSocket,
     payload: { elderId?: string },
   ): Promise<{ ok: boolean; code?: string }> {
-    const user = client.data.user as SocketUser | undefined;
+    const user = client.data.user;
     const elderId = payload?.elderId;
     if (!user || !elderId) {
       return { ok: false, code: 'BAD_REQUEST' };
@@ -83,7 +102,10 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
     this.server?.to(elderRoom(log.elderId)).emit('log.created', log);
   }
 
-  private async canAccessElder(user: SocketUser, elderId: string): Promise<boolean> {
+  private async canAccessElder(
+    user: SocketUser,
+    elderId: string,
+  ): Promise<boolean> {
     if (user.role === 'ELDER') {
       return user.id === elderId;
     }
@@ -94,7 +116,7 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
   }
 }
 
-function extractToken(client: Socket): string | null {
+function extractToken(client: AppSocket): string | null {
   const authToken = client.handshake.auth?.token as unknown;
   if (typeof authToken === 'string' && authToken.length > 0) {
     return authToken.replace(/^Bearer\s+/i, '');

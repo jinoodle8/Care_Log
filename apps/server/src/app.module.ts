@@ -7,6 +7,7 @@ import { LinksModule } from './links/links.module';
 import { LogsModule } from './logs/logs.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { RealtimeModule } from './realtime/realtime.module';
+import { SchedulesModule } from './schedules/schedules.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { RealtimeModule } from './realtime/realtime.module';
     LinksModule,
     RealtimeModule,
     LogsModule,
+    SchedulesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

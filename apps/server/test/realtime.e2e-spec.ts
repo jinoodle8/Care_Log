@@ -20,6 +20,19 @@ interface RedeemResponse {
 
 const SOCKET_TIMEOUT_MS = 5000;
 
+interface SubscribeAck {
+  ok: boolean;
+  code?: string;
+}
+
+/** emitWithAck는 any를 반환하므로 서버 계약 타입으로 좁혀서 쓴다. */
+async function subscribeAck(
+  socket: Socket,
+  elderId: string,
+): Promise<SubscribeAck> {
+  return (await socket.emitWithAck('subscribe', { elderId })) as SubscribeAck;
+}
+
 describe('RealtimeGateway (e2e)', () => {
   let app: INestApplication<App>;
   let prisma: PrismaService;
@@ -57,7 +70,11 @@ describe('RealtimeGateway (e2e)', () => {
     app = moduleFixture.createNestApplication();
     app.useGlobalFilters(new HttpExceptionFilter());
     app.useGlobalPipes(
-      new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+      }),
     );
     await app.init();
     await app.listen(0);
@@ -114,7 +131,10 @@ describe('RealtimeGateway (e2e)', () => {
     const socket = connect();
 
     await new Promise<void>((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error('disconnect 되지 않음')), SOCKET_TIMEOUT_MS);
+      const timer = setTimeout(
+        () => reject(new Error('disconnect 되지 않음')),
+        SOCKET_TIMEOUT_MS,
+      );
       socket.on('disconnect', () => {
         clearTimeout(timer);
         resolve();
@@ -130,7 +150,7 @@ describe('RealtimeGateway (e2e)', () => {
     const socket = connect(guardianToken);
     await new Promise<void>((resolve) => socket.on('connect', () => resolve()));
 
-    const ack = await socket.emitWithAck('subscribe', { elderId });
+    const ack = await subscribeAck(socket, elderId);
     expect(ack).toEqual({ ok: true });
   }, 10000);
 
@@ -138,14 +158,14 @@ describe('RealtimeGateway (e2e)', () => {
     const socket = connect(otherGuardianToken);
     await new Promise<void>((resolve) => socket.on('connect', () => resolve()));
 
-    const ack = await socket.emitWithAck('subscribe', { elderId });
+    const ack = await subscribeAck(socket, elderId);
     expect(ack).toEqual({ ok: false, code: 'NOT_LINKED_ELDER' });
   }, 10000);
 
   it('구독한 보호자는 로그 생성 시 log.created 이벤트를 받는다', async () => {
     const socket = connect(guardianToken);
     await new Promise<void>((resolve) => socket.on('connect', () => resolve()));
-    await socket.emitWithAck('subscribe', { elderId });
+    await subscribeAck(socket, elderId);
 
     const received = new Promise<MedicationLog>((resolve, reject) => {
       const timer = setTimeout(
