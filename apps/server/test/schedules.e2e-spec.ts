@@ -88,6 +88,7 @@ describe('SchedulesController (e2e)', () => {
   }, 30000);
 
   afterAll(async () => {
+    await prisma.medicationLog.deleteMany({ where: { elderId } });
     await prisma.schedule.deleteMany({ where: { elderId } });
     await prisma.link.deleteMany({ where: { guardianId } });
     await prisma.inviteCode.deleteMany({ where: { guardianId } });
