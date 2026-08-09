@@ -338,7 +338,8 @@ EXPO_ACCESS_TOKEN=
 ```
 EXPO_PUBLIC_API_BASE_URL=http://localhost:3000
 EXPO_PUBLIC_WS_URL=ws://localhost:3000
-EXPO_PUBLIC_RECOGNITION_ENGINE=mock       # mock | tflite (M5~에서 tflite 허용)
+EXPO_PUBLIC_RECOGNITION_ENGINE=mock       # mock | tflite. 기본값은 M6-07 전환 결정 전까지 mock
+EXPO_PUBLIC_TFLITE_FALLBACK_TO_MOCK=false # tflite 선택 시 실모델 대신 mock에 위임(개발용, M6 전까지)
 EXPO_PUBLIC_MOCK_TAKEN_RATE=0.90
 EXPO_PUBLIC_MOCK_UNCERTAIN_RATE=0.08
 EXPO_PUBLIC_MOCK_MISSED_RATE=0.02

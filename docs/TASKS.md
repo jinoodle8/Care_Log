@@ -172,8 +172,9 @@
 - [x] **M5-02** 기존 `expo-camera` 기반 녹화 화면을 vision-camera로 교체(녹화 기능 동등성 유지)
   `[검증]` M2에서 검증한 녹화 플로우(카운트다운→녹화→분석중→결과)가 회귀 없이 동작
   → `expo-camera` 의존성 제거. Android 번들 성공으로 import 해석까지 확인. **실기기 녹화 플로우는 미검증.**
-- [ ] **M5-03** `TFLiteRecognitionEngine` 스텁 생성(`recognition/TFLiteRecognitionEngine.ts`) — `analyze()`는 미구현 예외 또는 Mock 위임, 팩토리에 `RECOGNITION_ENGINE=tflite` 분기 추가(기본값은 여전히 mock)
+- [x] **M5-03** `TFLiteRecognitionEngine` 스텁 생성(`recognition/TFLiteRecognitionEngine.ts`) — `analyze()`는 미구현 예외 또는 Mock 위임, 팩토리에 `RECOGNITION_ENGINE=tflite` 분기 추가(기본값은 여전히 mock)
   `[검증]` env 플래그 전환 시 팩토리가 올바른 엔진 인스턴스 반환하는 유닛 테스트
+  → 기본은 미구현 예외, `EXPO_PUBLIC_TFLITE_FALLBACK_TO_MOCK=true`일 때만 Mock 위임(조용히 가짜 결과를 흘리지 않도록). 팩토리 분기 유닛 테스트 포함.
 - [ ] **M5-04** `ai/training` 스캐폴드 — Python 가상환경(requirements.txt), YOLOv8n 학습 스크립트 뼈대(Ultralytics), CNN-BiLSTM 학습 스크립트 뼈대(구조만, 학습 데이터 없이 dry-run 가능한 더미 데이터 경로)
   `[검증]` `python ai/training/train_yolo.py --dry-run` 등으로 스크립트 문법/의존성 오류 없이 종료
 - [ ] **M5-05** `ai/dataset` DVC 초기화(또는 대체 관리 방식 문서화) — git 제외 설정 확인

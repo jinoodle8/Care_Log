@@ -1,12 +1,23 @@
 import type { RecognitionEngine } from '@carelog/shared';
 import { MockRecognitionEngine, type MockRecognitionEngineOptions } from './MockRecognitionEngine';
+import {
+  TFLiteRecognitionEngine,
+  type TFLiteRecognitionEngineOptions,
+} from './TFLiteRecognitionEngine';
 
 export { MockRecognitionEngine } from './MockRecognitionEngine';
 export type { MockRecognitionEngineOptions } from './MockRecognitionEngine';
+export {
+  TFLiteEngineNotImplementedError,
+  TFLiteRecognitionEngine,
+} from './TFLiteRecognitionEngine';
+export type { TFLiteRecognitionEngineOptions } from './TFLiteRecognitionEngine';
 
 export type RecognitionEngineKind = 'mock' | 'tflite';
 
-export interface GetRecognitionEngineOverrides extends MockRecognitionEngineOptions {
+export interface GetRecognitionEngineOverrides
+  extends MockRecognitionEngineOptions,
+    TFLiteRecognitionEngineOptions {
   kind?: RecognitionEngineKind;
 }
 
@@ -23,8 +34,8 @@ function readEnvBoolean(value: string | undefined, fallback: boolean): boolean {
 let cachedEngine: RecognitionEngine | null = null;
 
 /** `EXPO_PUBLIC_RECOGNITION_ENGINE` 빌드타임 플래그(기본값 mock)에 따라 RecognitionEngine 구현체를
- * 반환한다. M1~M4 구간에서는 항상 mock을 사용하고, 실모델(TFLiteRecognitionEngine)은 M5~에서
- * 추가한다. `overrides`는 테스트 및 개발자 설정 화면(M2-03)에서 값을 직접 주입할 때 사용한다. */
+ * 반환한다. 기본값은 M6에서 실모델 성능이 확인될 때까지 mock으로 유지한다(M6-07에서 전환 결정).
+ * `overrides`는 테스트 및 개발자 설정 화면(M2-03)에서 값을 직접 주입할 때 사용한다. */
 export function getRecognitionEngine(overrides: GetRecognitionEngineOverrides = {}): RecognitionEngine {
   if (cachedEngine && Object.keys(overrides).length === 0) {
     return cachedEngine;
@@ -34,9 +45,18 @@ export function getRecognitionEngine(overrides: GetRecognitionEngineOverrides = 
     overrides.kind ?? (process.env.EXPO_PUBLIC_RECOGNITION_ENGINE as RecognitionEngineKind | undefined) ?? 'mock';
 
   if (kind === 'tflite') {
-    throw new Error(
-      'TFLiteRecognitionEngine은 아직 지원되지 않습니다 (M5~ 도입 예정). RECOGNITION_ENGINE=mock을 사용하세요.',
-    );
+    const tfliteEngine = new TFLiteRecognitionEngine({
+      fallbackToMock:
+        overrides.fallbackToMock ??
+        readEnvBoolean(process.env.EXPO_PUBLIC_TFLITE_FALLBACK_TO_MOCK, false),
+      detectorModelPath: overrides.detectorModelPath,
+      sequenceModelPath: overrides.sequenceModelPath,
+    });
+
+    if (Object.keys(overrides).length === 0) {
+      cachedEngine = tfliteEngine;
+    }
+    return tfliteEngine;
   }
 
   const engine = new MockRecognitionEngine({

@@ -1,9 +1,13 @@
 import { MockRecognitionEngine } from './MockRecognitionEngine';
+import { TFLiteRecognitionEngine } from './TFLiteRecognitionEngine';
 import { getRecognitionEngine, resetRecognitionEngineCache } from './index';
 
 describe('getRecognitionEngine', () => {
+  const originalEngineEnv = process.env.EXPO_PUBLIC_RECOGNITION_ENGINE;
+
   afterEach(() => {
     resetRecognitionEngineCache();
+    process.env.EXPO_PUBLIC_RECOGNITION_ENGINE = originalEngineEnv;
   });
 
   it('기본값(kind 미지정)이면 MockRecognitionEngine을 반환한다', () => {
@@ -11,8 +15,24 @@ describe('getRecognitionEngine', () => {
     expect(engine).toBeInstanceOf(MockRecognitionEngine);
   });
 
-  it('kind: tflite이면 아직 지원하지 않는다는 에러를 던진다', () => {
-    expect(() => getRecognitionEngine({ kind: 'tflite' })).toThrow(/TFLiteRecognitionEngine/);
+  it('kind: tflite이면 TFLiteRecognitionEngine을 반환한다 (M5-03)', () => {
+    const engine = getRecognitionEngine({ kind: 'tflite' });
+    expect(engine).toBeInstanceOf(TFLiteRecognitionEngine);
+  });
+
+  it('env 플래그가 tflite면 TFLiteRecognitionEngine을 반환한다', () => {
+    process.env.EXPO_PUBLIC_RECOGNITION_ENGINE = 'tflite';
+    expect(getRecognitionEngine()).toBeInstanceOf(TFLiteRecognitionEngine);
+  });
+
+  it('env 플래그가 mock이면 MockRecognitionEngine을 반환한다', () => {
+    process.env.EXPO_PUBLIC_RECOGNITION_ENGINE = 'mock';
+    expect(getRecognitionEngine()).toBeInstanceOf(MockRecognitionEngine);
+  });
+
+  it('env 플래그가 없으면 mock이 기본값이다 (M6-07 전까지 유지)', () => {
+    delete process.env.EXPO_PUBLIC_RECOGNITION_ENGINE;
+    expect(getRecognitionEngine()).toBeInstanceOf(MockRecognitionEngine);
   });
 
   it(
