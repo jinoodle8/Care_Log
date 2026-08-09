@@ -149,6 +149,51 @@ describe('MediaController (e2e)', () => {
       .expect(400);
   });
 
+  it('presign → PUT → POST /logs 순서로 videoRef만 DB에 남는다 (M4-02)', async () => {
+    const presignRes = await request(app.getHttpServer())
+      .post('/media/presign')
+      .set('Authorization', `Bearer ${elderToken}`)
+      .send({ contentType: 'video/mp4' })
+      .expect(201);
+    const { uploadUrl, videoRef, requiredHeaders } =
+      presignRes.body as PresignResponse;
+
+    const uploaded = await fetch(uploadUrl, {
+      method: 'PUT',
+      headers: requiredHeaders,
+      body: Buffer.from('fake-mp4-bytes-for-log-chain'),
+    });
+    expect(uploaded.status).toBe(200);
+
+    const logRes = await request(app.getHttpServer())
+      .post('/logs')
+      .set('Authorization', `Bearer ${elderToken}`)
+      .send({
+        takenAt: new Date().toISOString(),
+        decision: 'TAKEN',
+        sequenceConf: 0.94,
+        detections: [{ cls: 'face', conf: 0.97, bbox: [0.4, 0.4, 0.6, 0.6] }],
+        actionSequence: ['pick_up', 'hand_to_mouth', 'swallow'],
+        videoRef,
+      })
+      .expect(201);
+
+    const logId = (logRes.body as { id: string }).id;
+    const stored = await prisma.medicationLog.findUniqueOrThrow({
+      where: { id: logId },
+    });
+
+    // DB에는 s3:// 참조만 있어야 한다(CLAUDE.md 7장 — 영상 원본 DB 저장 금지).
+    expect(stored.videoRef).toBe(videoRef);
+    expect(stored.videoRef).toMatch(/^s3:\/\//);
+
+    // 로그 레코드 어디에도 영상 바이트가 섞여 들어가지 않았는지 확인한다.
+    const serialized = JSON.stringify(stored);
+    expect(serialized).not.toContain('fake-mp4-bytes-for-log-chain');
+
+    await prisma.medicationLog.delete({ where: { id: logId } });
+  }, 30000);
+
   it('발급받은 URL로 실제 PUT 업로드가 성공한다 (MinIO 필요)', async () => {
     const res = await request(app.getHttpServer())
       .post('/media/presign')

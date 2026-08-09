@@ -6,10 +6,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { uploadLog } from '@/api/logs';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { uploadRecordedVideo } from '@/features/elder/video-upload';
 import { getRecognitionEngine } from '@/recognition';
 import { useAuthStore } from '@/store/auth-store';
 import { useLatestRecognitionResultStore } from '@/store/latest-recognition-result-store';
 import { useRecognitionSettingsStore } from '@/store/recognition-settings-store';
+import { useRecordedVideoStore } from '@/store/recorded-video-store';
 
 /** 분석 중 화면(PRD 4.2.3). MockRecognitionEngine.analyze()를 호출해 결과를
  * useLatestRecognitionResultStore에 저장한 뒤 결과 화면으로 이동한다. 실패 시
@@ -30,6 +32,9 @@ export default function AnalyzingScreen() {
   const isAuthLoaded = useAuthStore((state) => state.isLoaded);
   const accessToken = useAuthStore((state) => state.accessToken);
 
+  const recordedUri = useRecordedVideoStore((state) => state.uri);
+  const clearRecordedVideo = useRecordedVideoStore((state) => state.clear);
+
   const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
@@ -47,6 +52,19 @@ export default function AnalyzingScreen() {
 
       // elderId는 서버가 토큰에서 유도하므로, 연동이 끝난 기기(토큰 보유)에서만 업로드한다.
       if (accessToken) {
+        // 영상은 S3로 직접 올리고 참조(videoRef)만 로그에 싣는다(M4-02).
+        // 업로드가 실패해도 판정 기록 자체는 남겨야 하므로 videoRef 없이 진행한다.
+        let videoRef: string | undefined;
+        if (recordedUri) {
+          try {
+            videoRef = await uploadRecordedVideo(recordedUri);
+          } catch (videoError) {
+            console.warn('[analyzing] 영상 업로드 실패:', videoError);
+          } finally {
+            clearRecordedVideo();
+          }
+        }
+
         try {
           await uploadLog({
             takenAt: new Date().toISOString(),
@@ -54,6 +72,7 @@ export default function AnalyzingScreen() {
             sequenceConf: result.sequenceConf,
             detections: result.detections,
             actionSequence: result.actionSequence,
+            videoRef,
           });
         } catch (uploadError) {
           console.warn('[analyzing] 로그 업로드 실패:', uploadError);
@@ -66,9 +85,11 @@ export default function AnalyzingScreen() {
     }
   }, [
     accessToken,
+    clearRecordedVideo,
     demoMode,
     isAuthLoaded,
     isRecognitionSettingsLoaded,
+    recordedUri,
     router,
     setResult,
     takenRate,
