@@ -7,6 +7,7 @@ import type {
   MedicationLog as MedicationLogRecord,
 } from '@prisma/client';
 import { AppException } from '../common/exceptions/app.exception';
+import { MediaService } from '../media/media.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { guardianPushForDecision } from '../push/push-messages';
 import { PushService } from '../push/push.service';
@@ -27,6 +28,7 @@ export class LogsService {
     private readonly prisma: PrismaService,
     private readonly realtime: RealtimeGateway,
     private readonly push: PushService,
+    private readonly media: MediaService,
   ) {}
 
   /** 어르신 기기만 자신의 로그를 올릴 수 있다. elderId는 토큰에서 유도한다. */
@@ -126,6 +128,34 @@ export class LogsService {
     const log = toMedicationLog(record);
     this.realtime.emitLogUpdated(log);
     return log;
+  }
+
+  /**
+   * 보호자가 판정 근거 영상을 볼 수 있도록 짧게 만료되는 재생 URL을 발급한다(M4-05).
+   * 버킷은 퍼블릭 차단이므로 이 서명 URL 없이는 영상에 접근할 수 없다.
+   */
+  async getVideoUrl(
+    user: AuthUser,
+    logId: string,
+  ): Promise<{ url: string; expiresInSeconds: number }> {
+    const log = await this.prisma.medicationLog.findUnique({
+      where: { id: logId },
+      select: { elderId: true, videoRef: true },
+    });
+    if (!log) {
+      throw new AppException('LOG_NOT_FOUND', '기록을 찾을 수 없습니다.', 404);
+    }
+    await this.assertCanAccessElder(user, log.elderId);
+
+    if (!log.videoRef) {
+      throw new AppException('VIDEO_NOT_FOUND', '영상이 없는 기록입니다.', 404);
+    }
+
+    const url = await this.media.presignPlayback(log.videoRef);
+    if (!url) {
+      throw new AppException('VIDEO_NOT_FOUND', '영상이 없는 기록입니다.', 404);
+    }
+    return { url, expiresInSeconds: this.media.presignExpiresInSeconds };
   }
 
   async findMany(

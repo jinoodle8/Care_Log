@@ -231,8 +231,10 @@ MISSED_GRACE_MINUTES = 30   // 스케줄 +30분 경과 시 미복용 의심 크�
 | GET | `/logs?elderId=&from=&to=&decision=` | 타임라인 조회 | JWT |
 | GET | `/logs/stats?elderId=&range=day\|week` | 이행률 통계 | JWT(Guardian) |
 | PATCH | `/logs/:id/manual-confirm` | UNCERTAIN 수동확인(`{decision, note?}`) | JWT(Guardian) |
+| GET | `/logs/:id/video-url` | 판정 근거 영상 재생용 presigned GET URL | JWT |
 | GET/POST/PATCH/DELETE | `/schedules` | 스케줄 CRUD | JWT(Guardian) |
 | POST | `/media/presign` | 영상 업로드용 S3 presigned URL 발급 | JWT(Elder) |
+| POST | `/users/me/push-token` | Expo 푸시 토큰 등록 | JWT |
 
 ### 5.3 WebSocket
 

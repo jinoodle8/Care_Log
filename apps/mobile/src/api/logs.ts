@@ -27,6 +27,16 @@ export async function fetchLogStats(params: {
   return response.data;
 }
 
+/** 판정 근거 영상의 재생용 presigned URL. 짧게 만료되므로 재생 직전에 받는다. */
+export async function fetchLogVideoUrl(
+  logId: string,
+): Promise<{ url: string; expiresInSeconds: number }> {
+  const response = await apiClient.get<{ url: string; expiresInSeconds: number }>(
+    `/logs/${logId}/video-url`,
+  );
+  return response.data;
+}
+
 /** UNCERTAIN 건을 복약 확인(TAKEN) 또는 미복용(MISSED)으로 정리한다. */
 export async function manualConfirmLog(
   logId: string,

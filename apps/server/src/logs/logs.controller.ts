@@ -50,6 +50,16 @@ export class LogsController {
     return this.logsService.getStats(user, query);
   }
 
+  /** 판정 근거 영상 재생용 presigned GET URL. 접근 권한은 로그의 어르신 기준으로 확인한다. */
+  @Get(':id/video-url')
+  getVideoUrl(
+    @Req() req: Request,
+    @Param('id') id: string,
+  ): Promise<{ url: string; expiresInSeconds: number }> {
+    const user = req.user as AuthUser;
+    return this.logsService.getVideoUrl(user, id);
+  }
+
   @Get()
   findMany(
     @Req() req: Request,

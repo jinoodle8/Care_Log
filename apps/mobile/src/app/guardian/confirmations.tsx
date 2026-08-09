@@ -9,6 +9,7 @@ import { fetchMyElders } from '@/api/links';
 import { fetchLogs, manualConfirmLog } from '@/api/logs';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { LogVideoPlayer } from '@/features/guardian/log-video-player';
 import { useAuthStore } from '@/store/auth-store';
 
 const ACTION_SEQUENCE_LABELS: Record<string, string> = {
@@ -26,8 +27,7 @@ function weekAgoIso(): string {
 }
 
 /** UNCERTAIN 수동확인 화면(PRD 4.3.5). 확인이 필요한 기록만 모아 보여주고,
- * 판정 근거(신뢰도·인식된 동작)를 함께 제시해 보호자가 확인/미복용으로 정리한다.
- * 영상 재생은 S3 presigned URL이 준비되는 M4-05에서 붙인다. */
+ * 판정 근거(신뢰도·인식된 동작·녹화 영상)를 함께 제시해 보호자가 확인/미복용으로 정리한다. */
 export default function GuardianConfirmationsScreen() {
   const params = useLocalSearchParams<{ elderId?: string }>();
   const loadAuth = useAuthStore((state) => state.load);
@@ -124,9 +124,11 @@ export default function GuardianConfirmationsScreen() {
                   <ThemedText type="small">
                     인식된 동작: {steps.length > 0 ? steps : '없음'}
                   </ThemedText>
-                  <ThemedText type="small">
-                    영상 확인은 준비 중이에요 (M4에서 제공)
-                  </ThemedText>
+                  {log.videoRef ? (
+                    <LogVideoPlayer logId={log.id} />
+                  ) : (
+                    <ThemedText type="small">저장된 영상이 없어요</ThemedText>
+                  )}
 
                   <ThemedView style={styles.actionRow}>
                     <Pressable

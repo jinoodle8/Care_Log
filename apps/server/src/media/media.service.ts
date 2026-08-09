@@ -41,6 +41,11 @@ export class MediaService {
   private readonly bucket: string;
   private readonly expiresIn: number;
 
+  /** 발급되는 presigned URL의 유효 시간(초). 클라이언트가 재발급 시점을 판단할 때 쓴다. */
+  get presignExpiresInSeconds(): number {
+    return this.expiresIn;
+  }
+
   constructor(private readonly config: ConfigService) {
     const endpoint = this.config.get<string>('S3_ENDPOINT');
     const accessKeyId = this.config.get<string>('S3_ACCESS_KEY_ID');

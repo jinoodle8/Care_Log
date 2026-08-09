@@ -194,6 +194,117 @@ describe('MediaController (e2e)', () => {
     await prisma.medicationLog.delete({ where: { id: logId } });
   }, 30000);
 
+  describe('GET /logs/:id/video-url (M4-05)', () => {
+    async function createLogWithVideo(): Promise<{
+      logId: string;
+      body: string;
+    }> {
+      const presignRes = await request(app.getHttpServer())
+        .post('/media/presign')
+        .set('Authorization', `Bearer ${elderToken}`)
+        .send({ contentType: 'video/mp4' })
+        .expect(201);
+      const { uploadUrl, videoRef, requiredHeaders } =
+        presignRes.body as PresignResponse;
+
+      const content = `playback-bytes-${Date.now()}`;
+      const uploaded = await fetch(uploadUrl, {
+        method: 'PUT',
+        headers: requiredHeaders,
+        body: Buffer.from(content),
+      });
+      expect(uploaded.status).toBe(200);
+
+      const logRes = await request(app.getHttpServer())
+        .post('/logs')
+        .set('Authorization', `Bearer ${elderToken}`)
+        .send({
+          takenAt: new Date().toISOString(),
+          decision: 'UNCERTAIN',
+          sequenceConf: 0.72,
+          detections: [{ cls: 'face', conf: 0.9, bbox: [0.4, 0.4, 0.6, 0.6] }],
+          actionSequence: ['pick_up', 'hand_to_mouth'],
+          videoRef,
+        })
+        .expect(201);
+
+      return { logId: (logRes.body as { id: string }).id, body: content };
+    }
+
+    it('연동된 보호자는 재생 URL로 실제 영상을 내려받을 수 있다', async () => {
+      const { logId, body } = await createLogWithVideo();
+
+      const res = await request(app.getHttpServer())
+        .get(`/logs/${logId}/video-url`)
+        .set('Authorization', `Bearer ${guardianToken}`)
+        .expect(200);
+
+      const { url, expiresInSeconds } = res.body as {
+        url: string;
+        expiresInSeconds: number;
+      };
+      expect(expiresInSeconds).toBeGreaterThan(0);
+
+      const played = await fetch(url);
+      expect(played.status).toBe(200);
+      expect(await played.text()).toBe(body);
+
+      await prisma.medicationLog.delete({ where: { id: logId } });
+    }, 30000);
+
+    it('서명 없이 같은 오브젝트에 접근하면 거부된다 (퍼블릭 차단)', async () => {
+      const { logId } = await createLogWithVideo();
+
+      const res = await request(app.getHttpServer())
+        .get(`/logs/${logId}/video-url`)
+        .set('Authorization', `Bearer ${guardianToken}`)
+        .expect(200);
+
+      const { url } = res.body as { url: string };
+      const unsigned = await fetch(url.split('?')[0]);
+      expect(unsigned.status).toBeGreaterThanOrEqual(400);
+
+      await prisma.medicationLog.delete({ where: { id: logId } });
+    }, 30000);
+
+    it('영상이 없는 기록은 VIDEO_NOT_FOUND 404를 반환한다', async () => {
+      const logRes = await request(app.getHttpServer())
+        .post('/logs')
+        .set('Authorization', `Bearer ${elderToken}`)
+        .send({
+          takenAt: new Date().toISOString(),
+          decision: 'TAKEN',
+          sequenceConf: 0.95,
+          detections: [{ cls: 'face', conf: 0.9, bbox: [0.4, 0.4, 0.6, 0.6] }],
+          actionSequence: ['pick_up'],
+        })
+        .expect(201);
+      const logId = (logRes.body as { id: string }).id;
+
+      const res = await request(app.getHttpServer())
+        .get(`/logs/${logId}/video-url`)
+        .set('Authorization', `Bearer ${guardianToken}`)
+        .expect(404);
+      expect((res.body as { code: string }).code).toBe('VIDEO_NOT_FOUND');
+
+      await prisma.medicationLog.delete({ where: { id: logId } });
+    }, 30000);
+
+    it('존재하지 않는 로그는 LOG_NOT_FOUND 404를 반환한다', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/logs/no-such-id/video-url')
+        .set('Authorization', `Bearer ${guardianToken}`)
+        .expect(404);
+      expect((res.body as { code: string }).code).toBe('LOG_NOT_FOUND');
+    });
+
+    it('토큰 없이 요청하면 401을 반환한다', async () => {
+      await request(app.getHttpServer())
+        .get('/logs/any-id/video-url')
+        .expect(401);
+    });
+  });
+
   it('발급받은 URL로 실제 PUT 업로드가 성공한다 (MinIO 필요)', async () => {
     const res = await request(app.getHttpServer())
       .post('/media/presign')
