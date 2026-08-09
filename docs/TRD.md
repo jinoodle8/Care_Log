@@ -258,6 +258,35 @@ MISSED_GRACE_MINUTES = 30   // 스케줄 +30분 경과 시 미복용 의심 크�
 
 이 정책은 `test/guards.e2e-spec.ts`가 실행 가능한 체크리스트로 고정한다.
 
+#### 감사 로그 (M4-07)
+
+민감 액션은 `audit_logs` 테이블에 남긴다. `AuditService.record()`는 실패해도 예외를
+던지지 않으므로(경고 로그만) 감사 기록이 본래 작업을 되돌리는 일은 없다.
+
+| action | 언제 | target |
+|---|---|---|
+| `link.invite_code_create` | 보호자가 초대코드 발급 | InviteCode |
+| `link.redeem` | 어르신 계정 생성 + 연동 | Link |
+| `schedule.create` / `update` / `delete` | 복약 스케줄 변경 | Schedule |
+| `log.manual_confirm` | 보호자가 UNCERTAIN 판정을 뒤집음 | MedicationLog |
+| `media.presign_upload` | 영상 업로드 URL 발급 | MediaObject(key) |
+| `media.presign_playback` | 보호자가 영상 열람 | MedicationLog |
+
+`detail`은 저장 전에 `maskAuditDetail()`을 반드시 통과한다(CLAUDE.md 7장 — 개인정보 평문 로깅 금지).
+
+| 필드 | 처리 |
+|---|---|
+| `password`, `passwordHash`, `accessToken`, `refreshToken`, `pushToken`, `code`, `uploadUrl`, `authorization` | `[REDACTED]` — 통째로 제거 |
+| `phone`, `elderPhone` | 뒤 4자리만 (`***5678`) |
+| `name`, `elderName`, `guardianName` | 성 한 글자만 (`김**`) |
+| `elderId`, `guardianId`, 수치·불리언 | 그대로 — 추적에 필요하고 그 자체로 신원을 드러내지 않음 |
+
+자유 입력 필드(수동확인 `note`)는 개인정보가 섞일 수 있어 **본문을 저장하지 않고**
+`hasNote: boolean`만 남긴다. 서명 URL도 그 자체가 접근 권한이므로 저장하지 않는다.
+
+검증: `src/audit/audit-mask.spec.ts`(11건), `test/audit.e2e-spec.ts`(6건 — 실제 저장된
+행에 전화번호·이름 평문이 없는지 확인).
+
 ### 5.3 WebSocket
 
 - Namespace: `/realtime`

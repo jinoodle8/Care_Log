@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import type { Role, Schedule } from '@carelog/shared';
 import type { Schedule as ScheduleRecord } from '@prisma/client';
+import { AUDIT_ACTIONS, AuditService } from '../audit/audit.service';
 import { AppException } from '../common/exceptions/app.exception';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateScheduleDto } from './dto/create-schedule.dto';
@@ -13,7 +14,10 @@ export interface AuthUser {
 
 @Injectable()
 export class SchedulesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: AuditService,
+  ) {}
 
   async create(user: AuthUser, dto: CreateScheduleDto): Promise<Schedule> {
     await this.assertCanManageElder(user, dto.elderId);
@@ -36,6 +40,16 @@ export class SchedulesService {
         enabled: dto.enabled ?? true,
       },
     });
+
+    await this.audit.record({
+      action: AUDIT_ACTIONS.SCHEDULE_CREATE,
+      actorId: user.id,
+      actorRole: user.role,
+      targetType: 'Schedule',
+      targetId: record.id,
+      detail: { elderId: record.elderId, slot: record.slot, time: record.time },
+    });
+
     return toSchedule(record);
   }
 
@@ -60,12 +74,39 @@ export class SchedulesService {
       where: { id: target.id },
       data: { time: dto.time, enabled: dto.enabled },
     });
+
+    await this.audit.record({
+      action: AUDIT_ACTIONS.SCHEDULE_UPDATE,
+      actorId: user.id,
+      actorRole: user.role,
+      targetType: 'Schedule',
+      targetId: record.id,
+      detail: {
+        elderId: record.elderId,
+        slot: record.slot,
+        fromTime: target.time,
+        toTime: record.time,
+        fromEnabled: target.enabled,
+        toEnabled: record.enabled,
+      },
+    });
+
     return toSchedule(record);
   }
 
   async remove(user: AuthUser, id: string): Promise<{ id: string }> {
     const target = await this.getOwnedSchedule(user, id);
     await this.prisma.schedule.delete({ where: { id: target.id } });
+
+    await this.audit.record({
+      action: AUDIT_ACTIONS.SCHEDULE_DELETE,
+      actorId: user.id,
+      actorRole: user.role,
+      targetType: 'Schedule',
+      targetId: target.id,
+      detail: { elderId: target.elderId, slot: target.slot, time: target.time },
+    });
+
     return { id: target.id };
   }
 

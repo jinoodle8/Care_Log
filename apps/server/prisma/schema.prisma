@@ -83,6 +83,22 @@ model Schedule {
   @@map("schedules")
 }
 
+/// 민감 액션의 감사 추적(M4-07). detail은 마스킹된 뒤에만 저장된다.
+model AuditLog {
+  id         String   @id @default(cuid())
+  action     String
+  actorId    String?
+  actorRole  Role?
+  targetType String?
+  targetId   String?
+  detailJson Json?
+  createdAt  DateTime @default(now())
+
+  @@index([actorId, createdAt])
+  @@index([targetType, targetId])
+  @@map("audit_logs")
+}
+
 model MedicationLog {
   id                 String    @id @default(cuid())
   elderId            String

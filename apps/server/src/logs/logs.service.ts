@@ -6,6 +6,7 @@ import type {
   Prisma,
   MedicationLog as MedicationLogRecord,
 } from '@prisma/client';
+import { AUDIT_ACTIONS, AuditService } from '../audit/audit.service';
 import { AppException } from '../common/exceptions/app.exception';
 import { MediaService } from '../media/media.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -29,6 +30,7 @@ export class LogsService {
     private readonly realtime: RealtimeGateway,
     private readonly push: PushService,
     private readonly media: MediaService,
+    private readonly audit: AuditService,
   ) {}
 
   /** 어르신 기기만 자신의 로그를 올릴 수 있다. elderId는 토큰에서 유도한다. */
@@ -127,6 +129,23 @@ export class LogsService {
 
     const log = toMedicationLog(record);
     this.realtime.emitLogUpdated(log);
+
+    // 보호자가 판정을 뒤집는 민감 액션이므로 추적을 남긴다(M4-07).
+    await this.audit.record({
+      action: AUDIT_ACTIONS.LOG_MANUAL_CONFIRM,
+      actorId: user.id,
+      actorRole: user.role,
+      targetType: 'MedicationLog',
+      targetId: log.id,
+      detail: {
+        elderId: log.elderId,
+        from: 'UNCERTAIN',
+        to: dto.decision,
+        sequenceConf: log.sequenceConf,
+        hasNote: Boolean(dto.note),
+      },
+    });
+
     return log;
   }
 
@@ -155,6 +174,17 @@ export class LogsService {
     if (!url) {
       throw new AppException('VIDEO_NOT_FOUND', '영상이 없는 기록입니다.', 404);
     }
+
+    // 누가 어떤 어르신의 영상을 열람했는지 남긴다(M4-07). 서명 URL 자체는 저장하지 않는다.
+    await this.audit.record({
+      action: AUDIT_ACTIONS.MEDIA_PRESIGN_PLAYBACK,
+      actorId: user.id,
+      actorRole: user.role,
+      targetType: 'MedicationLog',
+      targetId: logId,
+      detail: { elderId: log.elderId },
+    });
+
     return { url, expiresInSeconds: this.media.presignExpiresInSeconds };
   }
 

@@ -8,6 +8,7 @@ import {
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import type { Role } from '@carelog/shared';
+import { AUDIT_ACTIONS, AuditService } from '../audit/audit.service';
 import { AppException } from '../common/exceptions/app.exception';
 import { PresignUploadDto } from './dto/presign-upload.dto';
 import {
@@ -46,7 +47,10 @@ export class MediaService {
     return this.expiresIn;
   }
 
-  constructor(private readonly config: ConfigService) {
+  constructor(
+    private readonly config: ConfigService,
+    private readonly audit: AuditService,
+  ) {
     const endpoint = this.config.get<string>('S3_ENDPOINT');
     const accessKeyId = this.config.get<string>('S3_ACCESS_KEY_ID');
     const secretAccessKey = this.config.get<string>('S3_SECRET_ACCESS_KEY');
@@ -97,6 +101,16 @@ export class MediaService {
 
     const uploadUrl = await getSignedUrl(this.client, command, {
       expiresIn: this.expiresIn,
+    });
+
+    // 서명 URL은 남기지 않고(자체가 접근 권한) 어떤 키를 발급했는지만 남긴다.
+    await this.audit.record({
+      action: AUDIT_ACTIONS.MEDIA_PRESIGN_UPLOAD,
+      actorId: user.id,
+      actorRole: user.role,
+      targetType: 'MediaObject',
+      targetId: key,
+      detail: { contentType, sizeBytes: dto.sizeBytes },
     });
 
     return {

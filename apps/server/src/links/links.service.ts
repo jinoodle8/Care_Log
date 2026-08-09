@@ -7,6 +7,7 @@ import type {
   UserProfile,
 } from '@carelog/shared';
 import { randomInt } from 'node:crypto';
+import { AUDIT_ACTIONS, AuditService } from '../audit/audit.service';
 import { AuthService } from '../auth/auth.service';
 import { AppException } from '../common/exceptions/app.exception';
 import { PrismaService } from '../prisma/prisma.service';
@@ -28,6 +29,7 @@ export class LinksService {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly authService: AuthService,
+    private readonly audit: AuditService,
   ) {}
 
   /** 보호자가 어르신 기기 설정용 초대코드를 발급한다(기본 24시간 유효). */
@@ -54,6 +56,17 @@ export class LinksService {
       const created = await this.prisma.inviteCode.create({
         data: { code, guardianId, expiresAt },
       });
+
+      // 코드 값 자체가 권한이므로 감사 로그에도 남기지 않는다(maskAuditDetail이 code를 가린다).
+      await this.audit.record({
+        action: AUDIT_ACTIONS.LINK_INVITE_CODE_CREATE,
+        actorId: guardianId,
+        actorRole: 'GUARDIAN',
+        targetType: 'InviteCode',
+        targetId: created.id,
+        detail: { expiresAt: created.expiresAt.toISOString() },
+      });
+
       return { code: created.code, expiresAt: created.expiresAt.toISOString() };
     }
 
@@ -121,6 +134,21 @@ export class LinksService {
         },
         linkId: link.id,
       };
+    });
+
+    // 계정 생성 + 연동이 한 번에 일어나는 지점이라 감사 대상이다(M4-07).
+    await this.audit.record({
+      action: AUDIT_ACTIONS.LINK_REDEEM,
+      actorId: elder.id,
+      actorRole: 'ELDER',
+      targetType: 'Link',
+      targetId: linkId,
+      detail: {
+        guardianId: invite.guardianId,
+        elderId: elder.id,
+        elderName: elder.name,
+        elderPhone: elder.phone,
+      },
     });
 
     // 어르신 기기가 이후 로그 업로드 시 사용할 토큰을 함께 발급한다(M2-15 가드 적용 대응).
