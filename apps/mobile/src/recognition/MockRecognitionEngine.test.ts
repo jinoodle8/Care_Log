@@ -12,9 +12,14 @@ describe('MockRecognitionEngine', () => {
       delayMsRange: [0, 0],
     });
 
+    // 샘플을 동시에 돌린다. 순차로 await하면 setTimeout 매크로태스크가 1000번 쌓여
+    // 다른 스위트와 병렬 실행될 때 타임아웃이 난다(분포 검증에는 영향 없음).
+    const results = await Promise.all(
+      Array.from({ length: SAMPLE_SIZE }, () => engine.analyze({ durationMs: 10000 })),
+    );
+
     const counts = { TAKEN: 0, UNCERTAIN: 0, MISSED: 0 };
-    for (let i = 0; i < SAMPLE_SIZE; i += 1) {
-      const result = await engine.analyze({ durationMs: 10000 });
+    for (const result of results) {
       counts[result.finalDecision] += 1;
     }
 
@@ -29,8 +34,11 @@ describe('MockRecognitionEngine', () => {
   it('finalDecision에 따라 판정 정책과 정합되는 sequenceConf를 반환한다', async () => {
     const engine = new MockRecognitionEngine({ delayMsRange: [0, 0] });
 
-    for (let i = 0; i < 200; i += 1) {
-      const result = await engine.analyze({ durationMs: 10000 });
+    const results = await Promise.all(
+      Array.from({ length: 200 }, () => engine.analyze({ durationMs: 10000 })),
+    );
+
+    for (const result of results) {
       if (result.finalDecision === 'TAKEN') {
         expect(result.sequenceConf).toBeGreaterThanOrEqual(TAKEN_THRESHOLD);
       } else if (result.finalDecision === 'UNCERTAIN') {
@@ -63,8 +71,11 @@ describe('MockRecognitionEngine', () => {
   it('demoMode=true이면 항상 TAKEN·sequenceConf=0.98을 반환한다', async () => {
     const engine = new MockRecognitionEngine({ demoMode: true, delayMsRange: [0, 0] });
 
-    for (let i = 0; i < 20; i += 1) {
-      const result = await engine.analyze({ durationMs: 10000 });
+    const results = await Promise.all(
+      Array.from({ length: 20 }, () => engine.analyze({ durationMs: 10000 })),
+    );
+
+    for (const result of results) {
       expect(result.finalDecision).toBe('TAKEN');
       expect(result.sequenceConf).toBe(0.98);
     }
