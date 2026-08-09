@@ -27,3 +27,6 @@ pandas==2.2.3
 
 # 데이터셋 버전 관리 (M5-05)
 dvc==3.56.0
+# pathspec 1.x는 dvc 3.56이 쓰는 _DIR_MARK를 제거해 dvc가 기동하지 못한다.
+# (ERROR: cannot import name '_DIR_MARK' from 'pathspec.patterns.gitwildmatch')
+pathspec==0.12.1
