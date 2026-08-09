@@ -166,10 +166,12 @@
 
 > 이 마일스톤부터 실모델 관련 라이브러리(`react-native-fast-tflite` 등) 설치를 시작한다. 그 전까지는 절대 설치하지 않는다.
 
-- [ ] **M5-01** `react-native-vision-camera` 도입 + frame processor 파이프라인 골격(프레임을 콜백으로 받는 구조까지, 아직 추론 없음)
+- [x] **M5-01** `react-native-vision-camera` 도입 + frame processor 파이프라인 골격(프레임을 콜백으로 받는 구조까지, 아직 추론 없음)
   `[검증]` 실기기에서 frame processor 콜백이 초당 N회 호출되는지 로그로 확인
-- [ ] **M5-02** 기존 `expo-camera` 기반 녹화 화면을 vision-camera로 교체(녹화 기능 동등성 유지)
+  → v5(nitro) 도입. `useFramePipeline`이 worklet에서 프레임을 세고 1초마다 fps를 로그로 남긴다. 계측 로직은 `frame-stats.test.ts` 11건으로 검증. **실기기 콜백 빈도는 미검증.**
+- [x] **M5-02** 기존 `expo-camera` 기반 녹화 화면을 vision-camera로 교체(녹화 기능 동등성 유지)
   `[검증]` M2에서 검증한 녹화 플로우(카운트다운→녹화→분석중→결과)가 회귀 없이 동작
+  → `expo-camera` 의존성 제거. Android 번들 성공으로 import 해석까지 확인. **실기기 녹화 플로우는 미검증.**
 - [ ] **M5-03** `TFLiteRecognitionEngine` 스텁 생성(`recognition/TFLiteRecognitionEngine.ts`) — `analyze()`는 미구현 예외 또는 Mock 위임, 팩토리에 `RECOGNITION_ENGINE=tflite` 분기 추가(기본값은 여전히 mock)
   `[검증]` env 플래그 전환 시 팩토리가 올바른 엔진 인스턴스 반환하는 유닛 테스트
 - [ ] **M5-04** `ai/training` 스캐폴드 — Python 가상환경(requirements.txt), YOLOv8n 학습 스크립트 뼈대(Ultralytics), CNN-BiLSTM 학습 스크립트 뼈대(구조만, 학습 데이터 없이 dry-run 가능한 더미 데이터 경로)

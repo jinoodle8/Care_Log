@@ -1,8 +1,8 @@
-import { useCameraPermissions } from 'expo-camera';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useCameraPermission } from 'react-native-vision-camera';
 
 import { fetchSchedules } from '@/api/schedules';
 import { ThemedText } from '@/components/themed-text';
@@ -15,7 +15,7 @@ import { useAuthStore } from '@/store/auth-store';
  * 화면에 들어올 때마다 보호자가 설정한 스케줄로 로컬 알림을 맞춘다(PRD 4.2.5). */
 export default function ElderHomeScreen() {
   const router = useRouter();
-  const [permission, requestPermission] = useCameraPermissions();
+  const { hasPermission, requestPermission } = useCameraPermission();
   const [deniedOnce, setDeniedOnce] = useState(false);
 
   const loadAuth = useAuthStore((state) => state.load);
@@ -43,13 +43,13 @@ export default function ElderHomeScreen() {
   }, [syncReminders]);
 
   const handlePress = async () => {
-    if (permission?.granted) {
+    if (hasPermission) {
       router.push('/elder/countdown');
       return;
     }
 
-    const result = await requestPermission();
-    if (result.granted) {
+    const granted = await requestPermission();
+    if (granted) {
       setDeniedOnce(false);
       router.push('/elder/countdown');
     } else {

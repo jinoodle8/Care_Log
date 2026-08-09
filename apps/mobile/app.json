@@ -8,7 +8,11 @@
     "scheme": "carelog",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/expo.icon",
+      "infoPlist": {
+        "NSCameraUsageDescription": "복약 확인을 위해 카메라를 사용해요.",
+        "NSMicrophoneUsageDescription": "복약 영상을 녹화할 때 소리를 함께 담아요."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -17,7 +21,8 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": ["android.permission.CAMERA", "android.permission.RECORD_AUDIO"]
     },
     "web": {
       "output": "static",
@@ -31,12 +36,6 @@
           "backgroundColor": "#208AEF",
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
-        }
-      ],
-      [
-        "expo-camera",
-        {
-          "cameraPermission": "복약 확인을 위해 카메라를 사용해요."
         }
       ],
       "expo-notifications",

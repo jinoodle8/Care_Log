@@ -9,6 +9,16 @@ export function contentTypeForUri(uri: string): VideoContentType {
 }
 
 /**
+ * vision-camera의 Recorder는 `file://` 없는 파일시스템 경로를 준다(M5-02).
+ * 업로드 계층(expo-file-system)은 URL을 기대하므로 여기서 한 번만 맞춘다.
+ * 이미 스킴이 붙어 있으면 그대로 둔다.
+ */
+export function toFileUrl(path: string): string {
+  if (/^[a-z][a-z0-9+.-]*:/i.test(path)) return path;
+  return `file://${path.startsWith('/') ? '' : '/'}${path}`;
+}
+
+/**
  * 녹화 영상을 presigned URL로 S3에 직접 올리고 videoRef를 돌려준다(M4-02).
  * 영상 바이트는 우리 서버를 거치지 않으며, DB에는 이 videoRef만 저장된다(CLAUDE.md 7장).
  */
