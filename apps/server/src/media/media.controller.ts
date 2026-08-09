@@ -5,10 +5,9 @@ import {
   HttpStatus,
   Post,
   Req,
-  UseGuards,
 } from '@nestjs/common';
 import type { Request } from 'express';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { Roles } from '../auth/roles.decorator';
 import { PresignUploadDto } from './dto/presign-upload.dto';
 import {
   MediaService,
@@ -17,10 +16,10 @@ import {
 } from './media.service';
 
 @Controller('media')
-@UseGuards(JwtAuthGuard)
 export class MediaController {
   constructor(private readonly mediaService: MediaService) {}
 
+  @Roles('ELDER')
   @Post('presign')
   @HttpCode(HttpStatus.CREATED)
   presign(

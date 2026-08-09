@@ -10,11 +10,10 @@ import {
   Post,
   Query,
   Req,
-  UseGuards,
 } from '@nestjs/common';
 import type { Role, Schedule } from '@carelog/shared';
 import type { Request } from 'express';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { Roles } from '../auth/roles.decorator';
 import { CreateScheduleDto } from './dto/create-schedule.dto';
 import { QuerySchedulesDto } from './dto/query-schedules.dto';
 import { UpdateScheduleDto } from './dto/update-schedule.dto';
@@ -26,10 +25,12 @@ interface AuthUser {
 }
 
 @Controller('schedules')
-@UseGuards(JwtAuthGuard)
 export class SchedulesController {
   constructor(private readonly schedulesService: SchedulesService) {}
 
+  // 스케줄 설정은 보호자가 대신 한다(PRD 4.3.6). 조회는 어르신 앱도 필요하므로
+  // (로컬 알림 동기화, M3-07) 역할을 제한하지 않고 서비스에서 소유권만 확인한다.
+  @Roles('GUARDIAN')
   @Post()
   @HttpCode(HttpStatus.CREATED)
   create(
@@ -47,6 +48,7 @@ export class SchedulesController {
     return this.schedulesService.findMany(req.user as AuthUser, query.elderId);
   }
 
+  @Roles('GUARDIAN')
   @Patch(':id')
   update(
     @Req() req: Request,
@@ -56,6 +58,7 @@ export class SchedulesController {
     return this.schedulesService.update(req.user as AuthUser, id, dto);
   }
 
+  @Roles('GUARDIAN')
   @Delete(':id')
   remove(
     @Req() req: Request,

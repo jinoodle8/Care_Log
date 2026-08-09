@@ -9,11 +9,10 @@ import {
   Post,
   Query,
   Req,
-  UseGuards,
 } from '@nestjs/common';
 import type { LogStats, MedicationLog, Role } from '@carelog/shared';
 import type { Request } from 'express';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { Roles } from '../auth/roles.decorator';
 import { CreateLogDto } from './dto/create-log.dto';
 import { ManualConfirmDto } from './dto/manual-confirm.dto';
 import { QueryLogsDto } from './dto/query-logs.dto';
@@ -26,11 +25,11 @@ interface AuthUser {
 }
 
 @Controller('logs')
-@UseGuards(JwtAuthGuard)
 export class LogsController {
   constructor(private readonly logsService: LogsService) {}
 
   /** 어르신 기기가 자신의 복약 로그를 올린다. elderId는 토큰에서 유도한다. */
+  @Roles('ELDER')
   @Post()
   @HttpCode(HttpStatus.CREATED)
   create(
@@ -70,6 +69,7 @@ export class LogsController {
   }
 
   /** 보호자가 UNCERTAIN 건을 복약 확인/미복용으로 정리한다. */
+  @Roles('GUARDIAN')
   @Patch(':id/manual-confirm')
   manualConfirm(
     @Req() req: Request,

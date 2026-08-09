@@ -236,6 +236,28 @@ MISSED_GRACE_MINUTES = 30   // 스케줄 +30분 경과 시 미복용 의심 크�
 | POST | `/media/presign` | 영상 업로드용 S3 presigned URL 발급 | JWT(Elder) |
 | POST | `/users/me/push-token` | Expo 푸시 토큰 등록 | JWT |
 
+#### 인증·인가 정책 (M4-06)
+
+인증은 **기본값이 "필요함"**이다. `JwtAuthGuard`가 `APP_GUARD`로 전역 등록되어 있어,
+새 라우트를 추가해도 명시적으로 열지 않는 한 인증을 요구한다(fail-closed).
+
+| 데코레이터 | 위치 | 효과 |
+|---|---|---|
+| `@Public()` | 라우트 | 인증 생략. 현재 `GET /`, `auth/signup`, `auth/login`, `auth/refresh`, `links/redeem` 5곳뿐 |
+| `@Roles('ELDER')` | 라우트 | 어르신 토큰만 허용 — `POST /logs`, `POST /media/presign` |
+| `@Roles('GUARDIAN')` | 라우트 | 보호자 토큰만 허용 — `links/invite-code`, `users/me/elders`, `PATCH /logs/:id/manual-confirm`, 스케줄 생성/수정/삭제 |
+| (미지정) | 라우트 | 인증된 두 역할 모두 허용. 어르신/보호자 구분은 서비스 계층이 소유·연동 관계로 판단 |
+
+권한 에러 코드는 계층과 무관하게 통일한다.
+
+- `FORBIDDEN` (403) — 역할이 맞지 않음(`RolesGuard` 또는 서비스)
+- `NOT_LINKED_ELDER` (403) — 역할은 맞지만 해당 어르신과 연동되지 않음(서비스)
+
+`GET /schedules`는 어르신 앱이 로컬 알림을 맞추기 위해 자기 스케줄을 읽어야 하므로(M3-07)
+역할을 제한하지 않고, `SchedulesService`가 소유권만 확인한다.
+
+이 정책은 `test/guards.e2e-spec.ts`가 실행 가능한 체크리스트로 고정한다.
+
 ### 5.3 WebSocket
 
 - Namespace: `/realtime`

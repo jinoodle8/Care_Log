@@ -5,15 +5,12 @@ import {
   HttpStatus,
   Post,
   Req,
-  UseGuards,
 } from '@nestjs/common';
 import type { Request } from 'express';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PrismaService } from '../prisma/prisma.service';
 import { RegisterPushTokenDto } from './dto/register-push-token.dto';
 
 @Controller('users/me')
-@UseGuards(JwtAuthGuard)
 export class PushController {
   constructor(private readonly prisma: PrismaService) {}
 

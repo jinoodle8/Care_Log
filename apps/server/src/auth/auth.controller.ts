@@ -6,7 +6,6 @@ import {
   HttpStatus,
   Post,
   Req,
-  UseGuards,
 } from '@nestjs/common';
 import type { UserProfile } from '@carelog/shared';
 import type { Request } from 'express';
@@ -14,24 +13,28 @@ import { AuthService, type AuthResult } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
 import { SignupDto } from './dto/signup.dto';
-import { JwtAuthGuard } from './jwt-auth.guard';
+import { Public } from './public.decorator';
 
 @Controller()
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @Public()
   @Post('auth/signup')
   @HttpCode(HttpStatus.CREATED)
   signup(@Body() dto: SignupDto): Promise<AuthResult> {
     return this.authService.signup(dto);
   }
 
+  @Public()
   @Post('auth/login')
   @HttpCode(HttpStatus.OK)
   login(@Body() dto: LoginDto): Promise<AuthResult> {
     return this.authService.login(dto);
   }
 
+  /** access token이 만료된 상태로 호출하므로 인증 대상에서 제외한다(refresh token 자체가 권한). */
+  @Public()
   @Post('auth/refresh')
   @HttpCode(HttpStatus.OK)
   refresh(@Body() dto: RefreshDto): Promise<AuthResult> {
@@ -39,7 +42,6 @@ export class AuthController {
   }
 
   @Get('users/me')
-  @UseGuards(JwtAuthGuard)
   me(@Req() req: Request): Promise<UserProfile> {
     const user = req.user as { id: string };
     return this.authService.getProfile(user.id);
