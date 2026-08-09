@@ -312,6 +312,7 @@ MISSED_GRACE_MINUTES = 30   // 스케줄 +30분 경과 시 미복용 의심 크�
 NODE_ENV=development
 PORT=3000
 DATABASE_URL=postgresql://user:password@localhost:5432/carelog
+CORS_ALLOWED_ORIGINS=    # 쉼표 구분. production에서는 필수(미설정 시 부팅 실패)
 JWT_ACCESS_SECRET=
 JWT_ACCESS_EXPIRES_IN=15m
 JWT_REFRESH_SECRET=

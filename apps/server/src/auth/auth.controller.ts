@@ -8,7 +8,9 @@ import {
   Req,
 } from '@nestjs/common';
 import type { UserProfile } from '@carelog/shared';
+import { Throttle } from '@nestjs/throttler';
 import type { Request } from 'express';
+import { STRICT_THROTTLE } from '../common/throttler';
 import { AuthService, type AuthResult } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
@@ -26,6 +28,8 @@ export class AuthController {
     return this.authService.signup(dto);
   }
 
+  /** 비밀번호 대입 공격을 막기 위해 상한을 낮춘다(M4-08). */
+  @Throttle(STRICT_THROTTLE)
   @Public()
   @Post('auth/login')
   @HttpCode(HttpStatus.OK)

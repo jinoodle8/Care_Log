@@ -8,9 +8,11 @@ import {
   Req,
 } from '@nestjs/common';
 import type { CreateInviteCodeResponse, UserProfile } from '@carelog/shared';
+import { Throttle } from '@nestjs/throttler';
 import type { Request } from 'express';
 import { Public } from '../auth/public.decorator';
 import { Roles } from '../auth/roles.decorator';
+import { STRICT_THROTTLE } from '../common/throttler';
 import { RedeemInviteCodeDto } from './dto/redeem-invite-code.dto';
 import { LinksService, type RedeemResult } from './links.service';
 
@@ -26,7 +28,9 @@ export class LinksController {
     return this.linksService.createInviteCode(user.id);
   }
 
-  /** 초대코드 자체가 권한이므로 인증 없이 호출한다(어르신 기기 최초 설정). */
+  /** 초대코드 자체가 권한이므로 인증 없이 호출한다(어르신 기기 최초 설정).
+   * 인증이 없는 만큼 코드 대입을 막기 위해 상한을 낮춘다(M4-08). */
+  @Throttle(STRICT_THROTTLE)
   @Public()
   @Post('links/redeem')
   @HttpCode(HttpStatus.CREATED)
