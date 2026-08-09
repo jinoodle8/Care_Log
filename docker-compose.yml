@@ -12,5 +12,45 @@ services:
     volumes:
       - carelog-postgres-data:/var/lib/postgresql/data
 
+  # 로컬 개발용 S3 대체(TRD 2장). 운영은 AWS S3를 쓰고, 앱 코드는 S3_ENDPOINT 유무로만 갈린다.
+  minio:
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    container_name: carelog-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: carelog
+      MINIO_ROOT_PASSWORD: carelog-secret
+      # SSE-S3 기본 암호화를 켜려면 KMS가 필요하다. 로컬 개발 전용 키이며 운영에서는
+      # AWS S3의 관리형 SSE-S3/KMS를 쓰므로 이 값은 어디에도 재사용하지 않는다.
+      MINIO_KMS_SECRET_KEY: "carelog-dev-key:50YUDw7TysqHlDYyjN+jdpv9GSFJ8UQqudrHVMIw/4Q="
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # 웹 콘솔
+    volumes:
+      - carelog-minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # 버킷 생성 + 암호화·라이프사이클·퍼블릭 차단 정책을 한 번에 적용하고 종료한다(M4-01/03/04).
+  minio-init:
+    image: minio/mc:RELEASE.2025-04-16T18-13-26Z
+    container_name: carelog-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "/scripts/init-minio.sh"]
+    environment:
+      S3_BUCKET: carelog-vault
+      S3_OBJECT_LIFECYCLE_DAYS: "30"
+      MINIO_ROOT_USER: carelog
+      MINIO_ROOT_PASSWORD: carelog-secret
+    volumes:
+      - ./scripts:/scripts:ro
+
 volumes:
   carelog-postgres-data:
+  carelog-minio-data:

@@ -37,10 +37,20 @@ pnpm install
 cp apps/server/.env.example apps/server/.env
 ```
 
-## 로컬 DB 실행 (PostgreSQL)
+## 로컬 인프라 실행 (PostgreSQL + MinIO)
 
 ```bash
 docker compose up -d
+```
+
+- `postgres` — 로그·계정 DB (5432)
+- `minio` — S3 대체 스토리지 (API 9000, 콘솔 http://localhost:9001, 계정 `carelog` / `carelog-secret`)
+- `minio-init` — `carelog-vault` 버킷을 생성하고 퍼블릭 차단·SSE(AES-256)·30일 라이프사이클을 적용한 뒤 종료한다
+
+버킷 정책만 다시 적용하려면:
+
+```bash
+docker compose up minio-init --force-recreate
 ```
 
 최초 1회 마이그레이션:
