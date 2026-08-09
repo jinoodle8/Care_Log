@@ -1,0 +1,14 @@
+# Ultralytics 데이터셋 정의 (M5-04)
+# 경로는 이 파일 기준 상대 경로다. 실제 이미지·라벨은 DVC로 관리하며 git에 넣지 않는다(M5-05).
+
+path: ../../dataset
+train: images/train
+val: images/val
+test: images/test
+
+# 순서가 곧 클래스 인덱스다. ai/training/config.py의 CLASS_NAMES와 반드시 일치해야 하며,
+# 바꾸면 기존 라벨과 학습된 가중치가 모두 어긋난다.
+names:
+  0: face
+  1: pill
+  2: hand

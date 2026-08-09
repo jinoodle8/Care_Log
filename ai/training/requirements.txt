@@ -1,0 +1,29 @@
+# CareLog 학습 환경 (Python 3.10+)
+#
+#   python -m venv .venv
+#   .venv\Scripts\activate        # Windows
+#   source .venv/bin/activate     # WSL/macOS
+#   pip install -r ai/training/requirements.txt
+#
+# 주의: 이 의존성은 학습 전용이다. 앱에는 .tflite 산출물만 들어간다(CLAUDE.md 2장).
+
+# 객체 인식 (YOLOv8n) + TFLite export
+ultralytics==8.3.0
+
+# 시퀀스 분류 (MobileNetV3 + BiLSTM)
+# CUDA 빌드가 필요하면 https://pytorch.org 의 인덱스 URL을 사용한다.
+torch==2.5.1
+torchvision==0.20.1
+
+# TFLite 변환에 필요 (ultralytics export가 내부적으로 사용)
+tensorflow==2.18.0
+onnx==1.17.0
+onnxruntime==1.20.1
+
+# 데이터 처리
+numpy==2.1.3
+opencv-python==4.10.0.84
+pandas==2.2.3
+
+# 데이터셋 버전 관리 (M5-05)
+dvc==3.56.0

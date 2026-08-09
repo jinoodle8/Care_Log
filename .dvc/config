@@ -1,0 +1,5 @@
+[core]
+    analytics = false
+    remote = carelog-dataset
+['remote "carelog-dataset"']
+    url = s3://carelog-dataset/ai

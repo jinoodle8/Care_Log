@@ -175,12 +175,15 @@
 - [x] **M5-03** `TFLiteRecognitionEngine` 스텁 생성(`recognition/TFLiteRecognitionEngine.ts`) — `analyze()`는 미구현 예외 또는 Mock 위임, 팩토리에 `RECOGNITION_ENGINE=tflite` 분기 추가(기본값은 여전히 mock)
   `[검증]` env 플래그 전환 시 팩토리가 올바른 엔진 인스턴스 반환하는 유닛 테스트
   → 기본은 미구현 예외, `EXPO_PUBLIC_TFLITE_FALLBACK_TO_MOCK=true`일 때만 Mock 위임(조용히 가짜 결과를 흘리지 않도록). 팩토리 분기 유닛 테스트 포함.
-- [ ] **M5-04** `ai/training` 스캐폴드 — Python 가상환경(requirements.txt), YOLOv8n 학습 스크립트 뼈대(Ultralytics), CNN-BiLSTM 학습 스크립트 뼈대(구조만, 학습 데이터 없이 dry-run 가능한 더미 데이터 경로)
+- [x] **M5-04** `ai/training` 스캐폴드 — Python 가상환경(requirements.txt), YOLOv8n 학습 스크립트 뼈대(Ultralytics), CNN-BiLSTM 학습 스크립트 뼈대(구조만, 학습 데이터 없이 dry-run 가능한 더미 데이터 경로)
   `[검증]` `python ai/training/train_yolo.py --dry-run` 등으로 스크립트 문법/의존성 오류 없이 종료
-- [ ] **M5-05** `ai/dataset` DVC 초기화(또는 대체 관리 방식 문서화) — git 제외 설정 확인
+  → 두 스크립트 모두 exit 0 확인. 무거운 의존성은 학습 함수 안에서만 import해 dry-run이 torch/ultralytics 없이 돌아간다.
+- [x] **M5-05** `ai/dataset` DVC 초기화(또는 대체 관리 방식 문서화) — git 제외 설정 확인
   `[검증]` `dataset/`가 `.gitignore`에 포함되고 DVC 초기화 커밋 확인
-- [ ] **M5-06** `ai/export` 산출물 규격 문서화 — `.tflite` 파일명 규칙, 버전 관리, 앱 번들 포함 방식(`apps/mobile/assets/models/`) 정의
+  → `dvc init` + 원격 설정(자격증명은 gitignore된 `config.local`로 분리), 익명 통계 수집 비활성화. 가짜 영상 파일을 넣어 `git add -n`으로 README만 추적되는 것을 실측.
+- [x] **M5-06** `ai/export` 산출물 규격 문서화 — `.tflite` 파일명 규칙, 버전 관리, 앱 번들 포함 방식(`apps/mobile/assets/models/`) 정의
   `[검증]` 문서 리뷰만으로 완료 처리(코드 변경 없음 가능)
+  → `docs/AI_ARTIFACTS.md` + `ai/export/manifest.json` 스켈레톤. 판정 추적을 위해 로그에 모델 버전을 남기는 규칙까지 정의.
 
 ---
 
@@ -250,6 +253,9 @@
 | 2026-08-10 | M4-06 | `8228253` |
 | 2026-08-10 | M4-07 | `716e50b` |
 | 2026-08-10 | M4-08 | `e5b18a7` |
+| 2026-08-10 | M5-01·M5-02 | `3f07f64` |
+| 2026-08-10 | M5-03 | `ba01ab0` |
+| 2026-08-10 | M5-04·M5-05·M5-06 | `(이 커밋)` |
 
 **M1·M2 완료.** M2에서 Mock 기반 서비스 플로우가 처음부터 끝까지 이어졌다: 어르신 촬영→판정→로그 업로드(M2-01~M2-11), 인증·초대코드 연동과 라우트 가드(M2-12~M2-15), 보호자 대시보드·타임라인(M2-16~M2-17), WebSocket 실시간 반영(M2-18~M2-20).
 
@@ -266,5 +272,16 @@ CORS·rate limiting·의존성 스캔 결과를 `docs/SECURITY-CHECKLIST.md`로 
 기기 카메라 녹화→업로드 구간(M4-02), 보호자 앱 영상 재생 화면(M4-05). 서버 측 계약은
 모두 e2e로 덮여 있으나 기기에서의 동작은 확인하지 못했다.
 
-재개 시 **M5-01(`react-native-vision-camera` frame processor 파이프라인)**부터 시작한다.
-M5부터 실모델 관련 라이브러리 설치가 허용된다.
+**M5 완료.** 실모델을 붙일 자리를 전부 열어 뒀다. 카메라를 vision-camera로 바꾸면서
+frame processor 출력을 같은 세션에 물려 두었고(M5-01·M5-02), `TFLiteRecognitionEngine`
+스텁과 팩토리 분기로 엔진 교체 지점을 확정했다(M5-03). 학습 쪽은 YOLOv8n·CNN-BiLSTM
+스크립트 뼈대와 DVC 데이터 관리, 산출물 규격 문서를 갖췄다(M5-04~06).
+
+`react-native-fast-tflite`는 아직 설치하지 않았다 — M6-02에서 도입한다.
+
+**M5에서 남긴 미검증 항목**: vision-camera는 development build가 필요해 Expo Go·웹에서
+동작하지 않는다. frame processor 콜백 빈도(M5-01)와 녹화 플로우 회귀(M5-02)는
+실기기에서 확인해야 한다. M3-07·M4-02·M4-05의 실기기 항목과 함께 남아 있다.
+
+재개 시 **M6-01(YOLOv8n 학습 파이프라인 + INT8 TFLite export)**부터 시작한다.
+다만 M6는 학습 데이터가 있어야 진행할 수 있으므로, `ai/dataset` 수집이 선행 조건이다.
