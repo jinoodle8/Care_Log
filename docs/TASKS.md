@@ -283,5 +283,10 @@ frame processor 출력을 같은 세션에 물려 두었고(M5-01·M5-02), `TFLi
 동작하지 않는다. frame processor 콜백 빈도(M5-01)와 녹화 플로우 회귀(M5-02)는
 실기기에서 확인해야 한다. M3-07·M4-02·M4-05의 실기기 항목과 함께 남아 있다.
 
+실기기 검증 절차와 체크리스트는 **`docs/DEVICE_VERIFICATION.md`**에 정리했다.
+빌드 전 네이티브 설정은 `expo prebuild`로 검증해 두었다 — 카메라·마이크 권한이
+AndroidManifest에 들어가고, vision-camera·nitro·worklets 5개 모듈이 정상 autolink된다
+(pnpm 심볼릭 링크 구조에서 자주 깨지는 지점이라 미리 확인).
+
 재개 시 **M6-01(YOLOv8n 학습 파이프라인 + INT8 TFLite export)**부터 시작한다.
 다만 M6는 학습 데이터가 있어야 진행할 수 있으므로, `ai/dataset` 수집이 선행 조건이다.

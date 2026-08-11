@@ -67,6 +67,22 @@ pnpm --filter @carelog/server prisma:migrate
 pnpm --filter @carelog/server start:dev
 ```
 
+### 모바일 (Expo)
+
+M5에서 `react-native-vision-camera`를 도입한 뒤로는 **Expo Go에서 앱이 뜨지 않는다.**
+네이티브 모듈이 포함된 development build가 필요하다. 절차와 실기기 검증 항목은
+[docs/DEVICE_VERIFICATION.md](docs/DEVICE_VERIFICATION.md) 참조.
+
+```bash
+cd apps/mobile && npx eas build --profile development --platform android
+```
+
+빌드된 앱을 설치한 뒤 개발 서버를 붙인다:
+
+```bash
+cd apps/mobile && npx expo start --dev-client
+```
+
 - 기본 포트: `http://localhost:3000`
 - Prisma Studio(DB GUI): `pnpm --filter @carelog/server prisma:studio`
 
