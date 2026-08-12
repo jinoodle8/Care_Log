@@ -25,6 +25,9 @@
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
         "android.permission.POST_NOTIFICATIONS"
       ],
       "package": "com.kimjihyeon.carelog"
@@ -49,6 +52,19 @@
     "experiments": {
       "typedRoutes": false,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "4437f21d-77a3-456b-b3ca-73ce9841d2d8"
+      }
+    },
+    "owner": "jh030803",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/4437f21d-77a3-456b-b3ca-73ce9841d2d8"
     }
   }
 }
