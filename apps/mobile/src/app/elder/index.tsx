@@ -81,6 +81,13 @@ export default function ElderHomeScreen() {
             약 먹기
           </ThemedText>
         </Pressable>
+
+        {/* 보조 동작. "약 먹기"보다 작게 두어 홈의 초점이 흐려지지 않게 한다(PRD 4.2.6). */}
+        <Pressable style={styles.secondaryButton} onPress={() => router.push('/elder/history')}>
+          <ThemedText type="subtitle" style={styles.secondaryText}>
+            내 복약 기록
+          </ThemedText>
+        </Pressable>
       </SafeAreaView>
     </ThemedView>
   );
@@ -99,7 +106,7 @@ const styles = StyleSheet.create({
   },
   bigButton: {
     width: '80%',
-    height: '60%',
+    height: '52%',
     minHeight: 240,
     borderRadius: 32,
     backgroundColor: '#208AEF',
@@ -111,6 +118,16 @@ const styles = StyleSheet.create({
   },
   centerText: {
     textAlign: 'center',
+  },
+  secondaryButton: {
+    borderWidth: 2,
+    borderColor: '#D0D5DD',
+    borderRadius: 20,
+    paddingVertical: 18,
+    paddingHorizontal: 32,
+  },
+  secondaryText: {
+    fontSize: 24,
   },
   retryButton: {
     borderWidth: 1,
