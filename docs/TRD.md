@@ -226,6 +226,9 @@ MISSED_GRACE_MINUTES = 30   // 스케줄 +30분 경과 시 미복용 의심 크�
 | POST | `/links/invite-code` | 보호자가 초대코드 생성(24h 만료) | JWT(Guardian) |
 | POST | `/links/redeem` | 초대코드로 어르신 계정 생성+연동 | - (코드 자체가 권한) |
 | GET | `/users/me` | 내 정보 | JWT |
+| PATCH | `/users/me` | 내 이름·전화번호 수정 | JWT |
+| POST | `/users/me/password` | 비밀번호 변경(현재 비밀번호 확인) | JWT |
+| PATCH | `/users/elders/:id` | 연동된 어르신 정보 대신 수정 | JWT(Guardian) |
 | GET | `/users/me/elders` | 연동된 어르신 목록 | JWT(Guardian) |
 | POST | `/logs` | 복약 로그 업로드(RecognitionResult 포함) | JWT(Elder) |
 | GET | `/logs?elderId=&from=&to=&decision=` | 타임라인 조회 | JWT |
@@ -271,6 +274,9 @@ MISSED_GRACE_MINUTES = 30   // 스케줄 +30분 경과 시 미복용 의심 크�
 | `log.manual_confirm` | 보호자가 UNCERTAIN 판정을 뒤집음 | MedicationLog |
 | `media.presign_upload` | 영상 업로드 URL 발급 | MediaObject(key) |
 | `media.presign_playback` | 보호자가 영상 열람 | MedicationLog |
+| `user.profile_update` | 내 이름·전화번호 수정 | User |
+| `user.password_change` | 비밀번호 변경 | User |
+| `user.elder_profile_update` | 보호자가 어르신 정보 수정 | User |
 
 `detail`은 저장 전에 `maskAuditDetail()`을 반드시 통과한다(CLAUDE.md 7장 — 개인정보 평문 로깅 금지).
 

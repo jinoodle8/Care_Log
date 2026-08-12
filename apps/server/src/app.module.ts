@@ -13,6 +13,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { PushModule } from './push/push.module';
 import { RealtimeModule } from './realtime/realtime.module';
 import { SchedulesModule } from './schedules/schedules.module';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { SchedulesModule } from './schedules/schedules.module';
     LogsModule,
     SchedulesModule,
     MediaModule,
+    UsersModule,
   ],
   controllers: [AppController],
   providers: [AppService],

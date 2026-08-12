@@ -14,6 +14,9 @@ export const AUDIT_ACTIONS = {
   MEDIA_PRESIGN_PLAYBACK: 'media.presign_playback',
   LINK_INVITE_CODE_CREATE: 'link.invite_code_create',
   LINK_REDEEM: 'link.redeem',
+  USER_PROFILE_UPDATE: 'user.profile_update',
+  USER_PASSWORD_CHANGE: 'user.password_change',
+  ELDER_PROFILE_UPDATE: 'user.elder_profile_update',
 } as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS];
