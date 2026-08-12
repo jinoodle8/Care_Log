@@ -36,6 +36,10 @@ apps/mobile/.expo/
 apps/mobile/android/
 apps/mobile/ios/
 
+# Firebase (FCM 푸시). 프로젝트 식별자가 들어 있어 저장소에 넣지 않는다.
+apps/mobile/google-services.json
+apps/mobile/GoogleService-Info.plist
+
 # ai — 학습 데이터는 어르신 얼굴이 담긴 영상이므로 절대 커밋하지 않는다(M5-05).
 # 구조를 알 수 있게 README와 DVC 포인터 파일(*.dvc)만 예외로 추적한다.
 ai/dataset/*

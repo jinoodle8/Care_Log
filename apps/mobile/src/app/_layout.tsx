@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 import { useColorScheme } from 'react-native';
 
 import { configureNotificationHandler } from '@/features/elder/local-notifications';
+import { usePushTokenSync } from '@/features/push/use-push-token-sync';
 
 SplashScreen.preventAutoHideAsync();
 configureNotificationHandler();
@@ -12,6 +13,9 @@ configureNotificationHandler();
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const router = useRouter();
+
+  // 로그인된 기기의 푸시 토큰을 서버에 등록한다. 이게 없으면 서버가 보낼 대상을 모른다.
+  usePushTokenSync();
 
   useEffect(() => {
     void SplashScreen.hideAsync();

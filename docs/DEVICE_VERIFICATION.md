@@ -135,13 +135,66 @@ docker exec carelog-postgres psql -U carelog -d carelog -c "SELECT id, \"videoRe
 > 첫 동기화 시 권한 요청이 뜨며, 거부하면 알림이 조용히 등록되지 않는다.
 > 권한을 거부했다면 설정 → 앱 → CareLog → 알림에서 다시 허용할 수 있다.
 
-### 덤 — 푸시 알림 (M3-05/06/08)
+### 푸시 알림 (M3-05/06/08) — FCM 설정 선행 필요
 
-기기가 둘이면 함께 확인한다.
+**Android 푸시는 Firebase 자격증명 없이는 동작하지 않는다.** 앱이 Expo 푸시 토큰을
+발급받는 단계에서 다음 오류로 실패한다:
+
+```
+Unable to get Firebase Messaging instance.
+Default FirebaseApp is not initialized in this process com.kimjihyeon.carelog.
+```
+
+푸시 토큰이 없으면 서버는 보낼 대상을 모르므로, 3종 푸시가 전부 조용히 버려진다.
+로컬 알림(M3-07)은 FCM과 무관하므로 이 설정 없이도 확인할 수 있다.
+
+#### 설정 절차 (재빌드 필요)
+
+1. [Firebase 콘솔](https://console.firebase.google.com)에서 프로젝트 생성
+2. Android 앱 추가 — 패키지명 **`com.kimjihyeon.carelog`** (app.json의 `android.package`와 정확히 일치해야 함)
+3. `google-services.json` 다운로드 → `apps/mobile/google-services.json`에 저장
+   (이 파일은 `.gitignore`에 있다)
+4. `apps/mobile/app.json`의 `expo.android`에 추가:
+
+```json
+"googleServicesFile": "./google-services.json"
+```
+
+5. FCM V1 서비스 계정 키를 Expo에 등록 — Firebase 콘솔 → 프로젝트 설정 →
+   서비스 계정 → 새 비공개 키 생성으로 JSON을 받은 뒤:
+
+```bash
+cd apps/mobile && npx eas credentials
+```
+
+   Android → Push Notifications: Manage your FCM V1 service account key → 받은 JSON 업로드
+
+6. 재빌드 (네이티브 설정이라 hot reload로는 반영되지 않는다)
+
+```bash
+cd apps/mobile && npx eas build --profile development --platform android
+```
+
+#### 설정 후 확인
+
+앱을 로그인 상태로 열면 Metro 로그에 다음이 찍혀야 한다:
+
+```
+[push] 푸시 토큰 등록 완료: ExponentPushToken[...]
+```
+
+DB에도 저장됐는지 확인한다:
+
+```bash
+docker exec carelog-postgres psql -U carelog -d carelog -c "SELECT name, role, \"pushToken\" IS NOT NULL AS has_token FROM users;"
+```
 
 - [ ] 어르신이 촬영을 마치면 보호자 기기에 "복약 완료" 푸시가 온다
 - [ ] UNCERTAIN 판정이면 "확인이 필요해요" 푸시가 온다
 - [ ] 스케줄 +30분이 지나도록 촬영하지 않으면 "미복용" 푸시가 온다
+
+> 기기가 한 대뿐이면 기기를 보호자 모드로 두고, 어르신 로그는 API로 만들어
+> 푸시 수신만 확인할 수 있다(초대코드를 redeem해 어르신 토큰을 얻은 뒤 `POST /logs`).
 
 ---
 
